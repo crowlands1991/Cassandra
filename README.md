@@ -1,7 +1,7 @@
 # Cassandra
 Most AI failures in the workplace aren't caused by bad models. They're caused by missing checks. Someone asks an LLM to do something, the output looks convincing, and nobody verifies it. Cassandra helps you catch that gap before it causes a problem.
 What it does
-Cassandra is a decision tree that assesses whether a specific LLM use case has the right safeguards in place. You describe your task, answer 1-7 questions about how the output will be checked, and get one of three verdicts: go ahead, proceed with caution, or don't use an LLM for this.
+Cassandra is a decision tree that assesses whether a specific LLM use case has the right safeguards in place. You describe your task, answer questions about how the output will be checked, and get one of three verdicts: go ahead, proceed with caution, or don't use an LLM for this.
 It covers five task types: sorting/labelling data, summarising/extracting, writing code, analysis and written output, and LLM-as-orchestrator (where the LLM calls tools on your behalf). Each path asks different questions because the risks are different.
 What it checks for
 The core question behind every path is the same: if the LLM gets this wrong, how would you know?
