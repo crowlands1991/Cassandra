@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cassandra: Should you trust your LLM output?</title>
+<meta name="description" content="A decision tree for assessing whether your LLM use case has the right safeguards. Seven questions or fewer.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cassandra: Should You Trust Your LLM Output?">
+<meta property="og:description" content="Most AI failures aren't about bad models. They're about missing checks. Cassandra walks you through 1-7 questions to assess whether your use case has the safeguards it needs.">
+<meta property="og:url" content="">
+<meta property="og:site_name" content="Cassandra">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Cassandra: Should You Trust Your LLM Output?">
+<meta name="twitter:description" content="Most AI failures aren't about bad models. They're about missing checks. 1-7 questions to find out if yours are in place.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
+<style>
+  :root {
+    --navy: #002C77;
+    --navy-light: #0d3d8f;
+    --navy-pale: #e8eef7;
+    --navy-bg: #f2f5fa;
+    --bg: #ffffff;
+    --card-border: #d4d9e3;
+    --card-hover: #f0f3f8;
+    --text: #111827;
+    --text-body: #1f2937;
+    --text-secondary: #4b5563;
+    --text-tertiary: #6b7280;
+    --text-label: #374151;
+    --border: #e5e7eb;
+    --green: #047857;
+    --green-bg: #ecfdf5;
+    --green-border: #a7f3d0;
+    --amber: #d97706;
+    --amber-bg: #fffbeb;
+    --amber-border: #fde68a;
+    --red: #b91c1c;
+    --red-bg: #fef2f2;
+    --red-border: #fecaca;
+    --red-dark: #7f1d1d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; background: var(--navy-bg); color: var(--text); font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+  .container { max-width: 760px; margin: 0 auto; padding: 48px 32px 120px; }
+  .mono { font-family: 'Source Code Pro', monospace; }
+  .serif { font-family: 'Source Serif 4', Georgia, serif; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes btnPulse { 0%,100% { box-shadow: 0 0 0 3px #002C7740; } 50% { box-shadow: 0 0 0 6px #002C7720; } }
+  .fade-up { animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+
+  .card { padding: 16px 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+
+  .expandable { margin-bottom: 8px; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .expandable-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; background: none; border: none; cursor: pointer; text-align: left; font-family: 'Source Sans 3', sans-serif; font-size: 14px; color: var(--navy); font-weight: 600; }
+  .expandable-chevron { font-family: 'Source Code Pro', monospace; font-size: 14px; color: var(--navy); transition: transform 0.2s ease; }
+  .expandable-content { padding: 0 18px 16px; animation: fadeUp 0.25s cubic-bezier(0.16,1,0.3,1) both; }
+
+  .option-btn { display: flex; align-items: flex-start; gap: 14px; width: 100%; padding: 18px 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.15s; font-family: 'Source Sans 3', sans-serif; -webkit-tap-highlight-color: transparent; }
+  .option-btn:hover { background: var(--card-hover); border-color: var(--card-border); }
+
+  .btn-box { font-family: 'Source Sans 3', sans-serif; font-size: 13px; color: var(--navy); background: var(--bg); border: 1px solid var(--card-border); border-radius: 6px; padding: 7px 16px; cursor: pointer; font-weight: 600; transition: all 0.15s; }
+  .btn-box:hover { border-color: var(--navy); background: var(--navy-pale); }
+
+  .btn-primary { font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 600; padding: 12px 28px; background: var(--navy); color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .btn-primary:hover { background: var(--navy-light); }
+  .btn-primary:disabled { background: var(--border); color: var(--text-tertiary); cursor: default; }
+
+  .btn-outline { font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 600; padding: 12px 28px; background: var(--bg); color: var(--navy); border: 2px solid var(--navy); border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .btn-outline:hover { background: var(--navy); color: #fff; }
+
+  .example-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.15s; font-family: 'Source Sans 3', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .example-btn:hover { background: var(--card-hover); border-color: var(--card-border); }
+
+  .task-textarea { width: 100%; min-height: 140px; padding: 20px 22px; background: var(--bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text); font-family: 'Source Sans 3', sans-serif; font-size: 16px; line-height: 1.7; resize: vertical; outline: none; transition: border-color 0.2s; }
+  .task-textarea:focus { border-color: var(--navy); }
+  .task-textarea::placeholder { color: var(--text-tertiary); }
+
+  .radio-outer { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--card-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; margin-top: 2px; }
+
+  .path-node { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .path-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .path-line { width: 2px; height: 20px; margin-left: 4px; }
+
+  .verdict-box { padding: 28px 32px; border-radius: 8px; margin-bottom: 32px; position: relative; overflow: hidden; }
+  .challenge-box { padding: 24px 28px; border-radius: 8px; margin-bottom: 32px; }
+  .principle-box { padding: 22px 26px; background: var(--navy-pale); border: 1px solid #002C7720; border-radius: 8px; margin-bottom: 28px; }
+  .guidance-num { display: flex; align-items: flex-start; gap: 14px; }
+  .top-actions { display: flex; justify-content: space-between; margin-bottom: 24px; gap: 8px; }
+  .start-row { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .tree-node { display: flex; align-items: flex-start; gap: 10px; padding: 3px 0; }
+  .tree-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+  .tree-outcome { padding: 6px 12px; border-radius: 6px; margin-top: 2px; margin-bottom: 6px; display: inline-block; }
+  .tree-branch { padding: 2px 0; }
+
+  @media (max-width: 600px) {
+    .container { padding: 24px 16px 80px; }
+    h1 { font-size: 26px !important; }
+    h2 { font-size: 20px !important; }
+    .card { padding: 14px 16px; }
+    .option-btn { padding: 14px 16px; gap: 12px; }
+    .example-btn { padding: 14px 16px; gap: 10px; flex-wrap: wrap; }
+    .btn-primary { padding: 14px 20px; width: 100%; text-align: center; }
+    .btn-outline { padding: 14px 20px; width: 100%; text-align: center; }
+    .btn-box { padding: 8px 12px; font-size: 12px; }
+    .expandable-header { padding: 12px 14px; font-size: 13px; }
+    .expandable-content { padding: 0 14px 14px; }
+    .path-node { padding: 6px 0; }
+    .verdict-box { padding: 20px 18px; margin-bottom: 24px; }
+    .challenge-box { padding: 18px 16px; margin-bottom: 24px; }
+    .principle-box { padding: 18px 16px; margin-bottom: 20px; }
+    .principle-box p:first-child { font-size: 15px !important; }
+    .guidance-num { gap: 10px; }
+    .top-actions { flex-wrap: wrap; }
+    .start-row { flex-direction: column; align-items: stretch; gap: 8px; }
+    .start-row .mono { text-align: center; }
+  }
+  @media (max-width: 380px) {
+    .container { padding: 20px 14px 60px; }
+    h1 { font-size: 22px !important; }
+    .option-btn { padding: 12px 14px; }
+    .example-btn { padding: 12px 14px; }
+    .verdict-box { padding: 16px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+const T = {
+  green: "#047857", greenBg: "#ecfdf5", greenBorder: "#a7f3d0",
+  amber: "#d97706", amberBg: "#fffbeb", amberBorder: "#fde68a",
+  red: "#b91c1c", redBg: "#fef2f2", redBorder: "#fecaca",
+  redDark: "#7f1d1d", navy: "#002C77", navyPale: "#e8eef7",
+};
+
+const VERSION = "v3.1 | 25 Feb 2026";
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function bgFor(c) { return c === T.green ? T.greenBg : c === T.amber ? T.amberBg : c === T.navy ? T.navyPale : T.redBg; }
+function borderFor(c) { return c === T.green ? T.greenBorder : c === T.amber ? T.amberBorder : c === T.navy ? (T.navy + "40") : T.redBorder; }
+
+const QUESTIONS = {
+  truth: { id: "truth", label: "THE FIRST QUESTION", question: "Does it matter if the output is accurate?", subtitle: "If the LLM gets this wrong, would anyone make a bad decision, take a wrong action, or believe something that isn\u2019t true?", options: [
+    { value: "no", label: "No \u2014 this is just exploration", desc: "Brainstorming, rough drafts, creative ideas. It doesn\u2019t matter if the LLM makes things up.", color: T.green },
+    { value: "yes", label: "Yes \u2014 accuracy matters", desc: "Someone will make decisions, take action, or present this as fact.", color: T.amber },
+  ]},
+  llmRole: { id: "llmRole", label: "HOW THE LLM IS USED", question: "Is the LLM producing the output itself, or using tools to do the work?", subtitle: "An LLM generating a report from its own knowledge is very different from an LLM that writes a database query, runs it, and summarises the results. The risks are different.", options: [
+    { value: "producing", label: "The LLM produces the output directly", desc: "The LLM generates text, analysis, code, or labels from its own knowledge or from documents you provide.", color: T.red },
+    { value: "orchestrating", label: "The LLM uses tools or systems", desc: "The LLM calls APIs, writes database queries, runs code, or uses other tools. The actual work is done by a reliable system, with the LLM as the intermediary.", color: T.amber },
+  ]},
+  taskType: { id: "taskType", label: "TASK TYPE", question: "What kind of task is this?", subtitle: "Different types of work have different ways of checking whether the LLM got it right.", options: [
+    { value: "labelling", label: "Sorting or labelling data", desc: "Putting items into predefined categories: tagging sentiment, classifying topics, labelling types.", color: T.green },
+    { value: "code", label: "Writing code or formulas", desc: "The LLM produces code, scripts, or formulas that can be run and tested.", color: T.amber },
+    { value: "summarising", label: "Summarising or extracting", desc: "Condensing documents, extracting structured data from text, translating content. The LLM is transforming source material you provide.", color: T.amber },
+    { value: "analysis", label: "Analysis, numbers, or written output", desc: "Insights, recommendations, calculations, reports \u2014 anything where the LLM is generating conclusions, not just transforming what you gave it.", color: T.red },
+    { value: "other", label: "None of these fit", desc: "The task doesn\u2019t map neatly to any of the categories above.", color: T.navy },
+  ]},
+  finetuneData: { id: "finetuneData", label: "TRAINING DATA", question: "Do you have hundreds of correctly labelled examples to train the LLM on your specific task?", subtitle: "Without training on your actual data, the LLM is guessing based on general knowledge. Giving it a few examples in a prompt is not the same as proper training.", options: [
+    { value: "yes", label: "Yes \u2014 we have enough labelled examples", desc: "Hundreds of items with verified correct labels that match our specific categories.", color: T.green },
+    { value: "no", label: "No \u2014 we\u2019re giving it instructions or a few examples", desc: "We\u2019re relying on the LLM\u2019s general knowledge with some guidance.", color: T.red },
+  ]},
+  labelSpotCheck: { id: "labelSpotCheck", label: "SPOT-CHECKING", question: "Can you check a sample of the labels against human judgement?", subtitle: "Even without full training data, you can measure accuracy by having a person label a random sample and comparing it to the LLM\u2019s output. This tells you how much to trust the rest.", options: [
+    { value: "yes", label: "Yes \u2014 we can sample and compare", desc: "We can have a person label a random subset and measure how often the LLM agrees.", color: T.amber },
+    { value: "no", label: "No \u2014 we\u2019d just be reading the labels and deciding if they seem right", desc: "We don\u2019t have a clear way to check whether the labels are correct.", color: T.red },
+  ]},
+  frozenModel: { id: "frozenModel", label: "MODEL STABILITY", question: "Can you lock the LLM to a specific version so it doesn\u2019t change?", subtitle: "If the LLM provider updates the model, your trained performance can drop without warning. What worked at 95% accuracy yesterday could be 80% tomorrow.", options: [
+    { value: "yes", label: "Yes \u2014 we can pin a specific version", desc: "Our provider lets us lock the model version and choose when to upgrade.", color: T.green },
+    { value: "no", label: "No \u2014 the model could be updated without us knowing", desc: "The LLM provider may change the model at any time.", color: T.red },
+  ]},
+  unitTests: { id: "unitTests", label: "TESTABILITY", question: "Can you write automated tests that prove the code works correctly?", subtitle: "Tests that run the code against known inputs and check that it produces the right outputs \u2014 without a person having to judge it.", options: [
+    { value: "yes", label: "Yes \u2014 we can test the output automatically", desc: "We can run the code and check the results against known-correct answers.", color: T.green },
+    { value: "no", label: "No \u2014 a person would need to judge whether it\u2019s right", desc: "There\u2019s no automated way to check whether the code does what it should.", color: T.red },
+  ]},
+  securityReview: { id: "securityReview", label: "SECURITY", question: "Will someone or something check the code for security problems?", subtitle: "LLM-generated code can have hidden security flaws. Passing tests means the code works \u2014 it doesn\u2019t mean the code is safe.", options: [
+    { value: "automated", label: "Yes \u2014 automated security scanning", desc: "Security scanning tools check for vulnerabilities automatically before the code is used.", color: T.green },
+    { value: "human", label: "Yes \u2014 a person reviews for security", desc: "A qualified person checks for security issues before the code is used.", color: T.amber },
+    { value: "no", label: "No \u2014 if it passes tests, we use it", desc: "We don\u2019t have a separate step to check for security problems.", color: T.red },
+  ]},
+  codeRepetition: { id: "codeRepetition", label: "HOW OFTEN", question: "Will this code generation happen regularly?", subtitle: "People check carefully the first time. By the fourth time, they skim. By the tenth, they stop checking altogether. This applies to security review too.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 regular code generation", desc: "The LLM will generate code on an ongoing basis, with a person reviewing each time.", color: T.amber },
+  ]},
+  sourceCheck: { id: "sourceCheck", label: "FAITHFULNESS", question: "Can you check whether the output is faithful to the source material?", subtitle: "Giving the LLM your documents doesn\u2019t prevent fabrication. It just means the fabrication sounds more like your data. Can you actually compare the output against the original?", options: [
+    { value: "yes", label: "Yes \u2014 we can compare output to source", desc: "We can check that the summary, extraction, or translation accurately reflects the original material.", color: T.green },
+    { value: "no", label: "No \u2014 we\u2019d be reading it and deciding if it seems right", desc: "The only way to check would be reading it and judging whether it looks faithful.", color: T.red },
+  ]},
+  sourceCheckMethod: { id: "sourceCheckMethod", label: "HOW YOU CHECK", question: "Is this checking done automatically, or does a person do it each time?", subtitle: "Automated checks don\u2019t get tired, distracted, or busy. People do.", options: [
+    { value: "automated", label: "Automated \u2014 a system checks it", desc: "Scripts, validation rules, or comparison tools that check faithfulness without human involvement.", color: T.green },
+    { value: "human", label: "A person checks it each time", desc: "Someone reviews the output against the source material manually.", color: T.amber },
+  ]},
+  sourceRepetition: { id: "sourceRepetition", label: "HOW OFTEN", question: "Will this task run more than once?", subtitle: "People check carefully the first time. By the fourth time, they skim. By the tenth, they stop checking altogether.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally. Someone will check this specific output.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 weekly, monthly, or ongoing", desc: "This will run repeatedly, producing outputs that feed into ongoing work.", color: T.amber },
+  ]},
+  structuralVerification: { id: "structuralVerification", label: "CHECKING THE OUTPUT", question: "Can you check whether the output is correct without relying on the LLM or on gut feel?", subtitle: "Not \u201Cdoes it look right?\u201D \u2014 an LLM is specifically designed to produce things that look right. Can you actually compare it against real data or an independent source?", options: [
+    { value: "yes", label: "Yes \u2014 we can check against real data or an independent source", desc: "We can compare the output to source data, a separate system, or a known-correct answer.", color: T.green },
+    { value: "no", label: "No \u2014 we\u2019d be reading it and deciding if it seems right", desc: "The only way to check would be reading it and judging whether it\u2019s plausible.", color: T.red },
+  ]},
+  verificationMethod: { id: "verificationMethod", label: "HOW YOU CHECK", question: "Is this checking done automatically, or does a person do it each time?", subtitle: "Automated checks don\u2019t get tired, distracted, or busy. People do.", options: [
+    { value: "automated", label: "Automated \u2014 a system checks it", desc: "Scripts, validation rules, or comparison tools that check the output without human involvement.", color: T.green },
+    { value: "human", label: "A person checks it each time", desc: "Someone reviews the output against source data manually. This depends on their time and attention.", color: T.amber },
+  ]},
+  repetition: { id: "repetition", label: "HOW OFTEN", question: "Will this task run more than once?", subtitle: "People check carefully the first time. By the fourth time, they skim. By the tenth, they stop checking altogether.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally. Someone will check this specific output.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 weekly, monthly, or ongoing", desc: "This will run repeatedly, producing outputs that feed into ongoing decisions.", color: T.amber },
+  ]},
+  orchTransparency: { id: "orchTransparency", label: "TRANSPARENCY", question: "Can you see what the LLM asked the tool to do?", subtitle: "If the LLM writes a database query, can you see the query? If it calls an API, can you see the request? The tool might be reliable, but you need to know whether the LLM asked the right question.", options: [
+    { value: "yes", label: "Yes \u2014 we can see the LLM\u2019s instructions to the tool", desc: "The queries, API calls, or code the LLM generates are visible and reviewable.", color: T.green },
+    { value: "no", label: "No \u2014 we only see the final output", desc: "We can\u2019t see what the LLM asked the tool to do, only what came back.", color: T.red },
+  ]},
+  orchRawOutput: { id: "orchRawOutput", label: "RAW OUTPUT", question: "Can you check the tool\u2019s raw output independently of the LLM\u2019s summary?", subtitle: "The tool might return correct data, but the LLM could misinterpret, selectively present, or incorrectly summarise the results. Can you see what the tool actually returned?", options: [
+    { value: "yes", label: "Yes \u2014 we can access the tool\u2019s raw results", desc: "We can see the actual database results, API response, or calculation output before the LLM processes it.", color: T.green },
+    { value: "no", label: "No \u2014 we only see the LLM\u2019s interpretation", desc: "The LLM summarises or reformats the tool\u2019s output, and we can\u2019t easily check the original.", color: T.red },
+  ]},
+  orchLogging: { id: "orchLogging", label: "AUDIT TRAIL", question: "Is the full chain logged: what was asked, what the tool returned, and how the LLM presented it?", subtitle: "Without logs, you can\u2019t diagnose problems after the fact. If something goes wrong in a multi-step process, you need to see where the chain broke.", options: [
+    { value: "yes", label: "Yes \u2014 the full chain is logged", desc: "Every step is recorded: the LLM\u2019s request, the tool\u2019s response, and the LLM\u2019s final output.", color: T.green },
+    { value: "no", label: "No \u2014 we don\u2019t have complete logs", desc: "Some or all of the chain is not recorded.", color: T.amber },
+  ]},
+  orchReviewMethod: { id: "orchReviewMethod", label: "HOW YOU CHECK", question: "Is the chain reviewed automatically, or does a person check it?", subtitle: "Automated checks can compare the LLM\u2019s query to expected patterns, validate the tool\u2019s output, and flag discrepancies. A person doing this will eventually stop.", options: [
+    { value: "automated", label: "Automated \u2014 a system validates the chain", desc: "Scripts or monitoring tools check that the LLM asked the right question and faithfully reported the answer.", color: T.green },
+    { value: "human", label: "A person reviews it", desc: "Someone checks the LLM\u2019s queries and compares the final output to the tool\u2019s raw results.", color: T.amber },
+  ]},
+  orchRepetition: { id: "orchRepetition", label: "HOW OFTEN", question: "Will this orchestrated task run more than once?", subtitle: "People check carefully the first time. By the fourth time, they skim. By the tenth, they stop checking altogether.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 regular or ongoing", desc: "This will run repeatedly as part of an ongoing process.", color: T.amber },
+  ]},
+};
+
+// ─── ROUTING ───
+function getNextQuestion(ans) {
+  if (!ans.truth) return "truth";
+  if (ans.truth === "no") return null;
+  if (!ans.llmRole) return "llmRole";
+
+  if (ans.llmRole === "orchestrating") {
+    if (!ans.orchTransparency) return "orchTransparency"; if (ans.orchTransparency === "no") return null;
+    if (!ans.orchRawOutput) return "orchRawOutput"; if (ans.orchRawOutput === "no") return null;
+    if (!ans.orchLogging) return "orchLogging"; if (ans.orchLogging === "no") return null;
+    if (!ans.orchReviewMethod) return "orchReviewMethod";
+    if (ans.orchReviewMethod === "automated") return null;
+    if (!ans.orchRepetition) return "orchRepetition"; return null;
+  }
+
+  if (!ans.taskType) return "taskType";
+  if (ans.taskType === "labelling") { if (!ans.finetuneData) return "finetuneData"; if (ans.finetuneData === "no") { if (!ans.labelSpotCheck) return "labelSpotCheck"; return null; } if (!ans.frozenModel) return "frozenModel"; return null; }
+  if (ans.taskType === "code") {
+    if (!ans.unitTests) return "unitTests"; if (ans.unitTests === "no") return null;
+    if (!ans.securityReview) return "securityReview"; if (ans.securityReview === "no") return null;
+    if (ans.securityReview === "human") { if (!ans.codeRepetition) return "codeRepetition"; return null; }
+    return null;
+  }
+  if (ans.taskType === "summarising") {
+    if (!ans.sourceCheck) return "sourceCheck"; if (ans.sourceCheck === "no") return null;
+    if (!ans.sourceCheckMethod) return "sourceCheckMethod";
+    if (!ans.sourceRepetition) return "sourceRepetition"; return null;
+  }
+  if (ans.taskType === "analysis") { if (!ans.structuralVerification) return "structuralVerification"; if (ans.structuralVerification === "no") return null; if (!ans.verificationMethod) return "verificationMethod"; if (!ans.repetition) return "repetition"; return null; }
+  if (ans.taskType === "other") return null;
+  return null;
+}
+
+// ─── OUTCOMES ───
+function getOutcome(ans) {
+  if (ans.truth === "no") return {
+    level: "clear", color: T.green, label: "GO AHEAD",
+    summary: "Accuracy doesn\u2019t matter for this task. LLMs are great for brainstorming, drafting, and exploring ideas where it doesn\u2019t matter if some of the output is made up. Use it freely.",
+    guidance: [
+      "If you share this output with others, label it clearly as unverified LLM output \u2014 the moment someone else treats it as fact, the risk changes",
+      "If this exploratory work starts informing real decisions, come back and reassess",
+    ],
+    challenge: "Exploratory work has a way of becoming the basis for decisions. If you share this with others, will they know it hasn\u2019t been checked?",
+  };
+
+  // ORCHESTRATION
+  if (ans.llmRole === "orchestrating") {
+    if (ans.orchTransparency === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t see what the LLM asked the tool to do, you can\u2019t tell whether it asked the right question. The tool itself might be perfectly reliable, but the LLM could be querying the wrong data, using the wrong parameters, or asking a subtly different question than you intended. You\u2019re trusting the intermediary blindly.", guidance: ["Set up your system so the LLM\u2019s instructions to each tool are visible and logged", "At minimum, you should be able to see the database queries, API calls, or code the LLM generates", "If the system doesn\u2019t support this level of transparency, it\u2019s not ready for tasks where accuracy matters"], challenge: "If the LLM wrote the wrong query but the tool returned a plausible-looking result, how would you know?" };
+    if (ans.orchRawOutput === "no") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 YOU\u2019RE TRUSTING THE INTERPRETATION", summary: "You can see what the LLM asked the tool, which is good. But you can\u2019t access the tool\u2019s raw output to check whether the LLM faithfully reported it. The tool might return correct data that the LLM then misinterprets, selectively presents, or subtly changes in its summary.", guidance: ["Try to set up access to the tool\u2019s raw output so you can compare it to the LLM\u2019s presentation", "Pay close attention to numbers, dates, and specific claims in the LLM\u2019s summary \u2014 these are where misinterpretation is most dangerous", "If the stakes are high, run the same queries manually to spot-check the results", "Be especially wary of the LLM\u2019s narrative framing \u2014 the numbers may be real but the story around them may not be"], challenge: "The tool returns correct data. The LLM summarises it. Can you tell if anything was lost or changed in translation?" };
+    if (ans.orchLogging === "no") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 BUILD LOGGING FIRST", summary: "You can see the LLM\u2019s queries and the raw output, which is a strong foundation. But without logging the full chain, you can\u2019t diagnose problems after the fact. If something goes wrong next week, you won\u2019t be able to trace where the chain broke.", guidance: ["Log every step: what the LLM asked, what the tool returned, and how the LLM presented the result", "Make logs searchable and easy to review \u2014 logs nobody reads are the same as no logs", "Set up the logging before relying on this process for anything important", "Once logging is in place, come back and reassess"], challenge: "If next month\u2019s report contains an error, can you trace exactly where in the chain it went wrong?" };
+    if (ans.orchReviewMethod === "automated") return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED VALIDATION IN PLACE", summary: "This is a strong setup for LLM orchestration. You can see what the LLM asks, check the raw output, the full chain is logged, and an automated system validates the process. The LLM is the intermediary, but you\u2019re not trusting it blindly.", guidance: ["Keep the validation rules up to date as the tools and data sources change", "Set up alerts for when validation catches discrepancies between the LLM\u2019s output and the tool\u2019s raw results", "Periodically review the logs with fresh eyes to catch patterns the automated checks might miss", "If the validation system breaks, stop the process \u2014 don\u2019t fall back to no checking"], challenge: null };
+    if (ans.orchRepetition === "once") return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 CHECK THIS RUN", summary: "You have good visibility into the chain: you can see what the LLM asked, check the raw output, and the process is logged. For a one-off task, a person reviewing the chain is reasonable.", guidance: ["Check the LLM\u2019s query or instructions to the tool \u2014 did it ask the right question?", "Compare the tool\u2019s raw output to the LLM\u2019s summary \u2014 was anything lost, changed, or added?", "Check the final output before using it in any decision or presentation", "If this starts happening regularly, move to automated validation"], challenge: null };
+    return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 REVIEW WILL ERODE", summary: "You have visibility and logging, which is good. But a person is checking the chain each time, and this runs regularly. People check carefully at first. Then they start skimming. The LLM will keep producing confident-looking output whether the chain is working correctly or not.", guidance: ["Move to automated validation \u2014 that\u2019s the single change that makes this fully reliable", "At minimum, automate the comparison between the LLM\u2019s output and the tool\u2019s raw results", "If you can\u2019t automate, rotate who does the review and track how long each review takes", "Set up alerts for anomalies: unusual query patterns, empty results, or outputs that differ significantly from previous runs"], challenge: "Can you automate the chain validation? That single change makes this sustainable long-term." };
+  }
+
+  // LABELLING
+  if (ans.taskType === "labelling") {
+    if (ans.finetuneData === "no") {
+      if (ans.labelSpotCheck === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "Without training data or a way to spot-check accuracy, the LLM is guessing how to label your data based on general knowledge. It might get some right, but you won\u2019t know which ones, and you can\u2019t measure how accurate it is.", guidance: ["Collect and label a few hundred real examples from your own data", "Use those to properly train a model for your specific labelling task", "At minimum, label a random sample so you can measure the LLM\u2019s accuracy before trusting it", "Until then, use people or simple rules to do the labelling"], challenge: "Can you invest the time to build a proper set of labelled examples? The upfront effort pays for itself in reliability." };
+      return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 MEASURE BEFORE YOU TRUST", summary: "You don\u2019t have full training data, but you can spot-check the LLM\u2019s labels against human judgement. This is a reasonable starting point, as long as you actually measure accuracy before relying on the results. Many labelling tasks work well with zero-shot or few-shot prompting, but you need to prove it with data, not assume it.", guidance: ["Label a random sample by hand and compare it to the LLM\u2019s output \u2014 measure the agreement rate", "Set a minimum accuracy threshold before you trust the rest of the batch", "Re-check accuracy whenever you change the prompt, the model, or the categories", "If accuracy is below your threshold, you need training data or a different approach"], challenge: "What accuracy rate would you need to trust these labels? Measure it before you decide." };
+    }
+    if (ans.frozenModel === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "You have the training data, which is good. But if the LLM provider can update the model without your knowledge, your carefully trained accuracy can break overnight.", guidance: ["Find a provider that lets you lock the model to a specific version", "Set up monitoring that alerts you if accuracy starts dropping", "If you can\u2019t lock the model, build a system that continuously checks accuracy against a set of known-correct examples"], challenge: "Can you switch to a provider that gives you control over model versions?" };
+    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH ONGOING ACCURACY CHECKS", summary: "This is one of the best uses of LLMs. You have real training data, a properly trained model, and control over the version.", guidance: ["Keep a set of correctly labelled examples that the LLM never sees during training \u2014 use these to test accuracy", "Run accuracy checks every time you update the model or change anything in the system", "Set a minimum accuracy level \u2014 if it drops below that, stop the process until you investigate", "Keep a log of all labels for review and future retraining"], challenge: null };
+  }
+
+  // CODE
+  if (ans.taskType === "code") {
+    if (ans.unitTests === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t write automated tests to prove the code works, you\u2019re trusting that the LLM got it right. LLM-generated code often looks correct but can contain subtle mistakes.", guidance: ["Start by defining what \u201Ccorrect\u201D looks like \u2014 then see if you can turn that into an automated test", "If the task is too vague to test, it\u2019s too vague to hand to an LLM", "Try breaking the task into smaller pieces that can each be tested independently"], challenge: "Can you restructure this task so the output is testable?" };
+    if (ans.securityReview === "no") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 SECURITY GAP", summary: "The code can be tested, which is good. But LLM-generated code can contain security holes that pass functional tests. Just because the code does what it\u2019s supposed to doesn\u2019t mean it\u2019s safe.", guidance: ["Add a security review step before using LLM-generated code in production", "At minimum, run automated security scanning tools", "Pay close attention to how the code handles user input, authentication, and sensitive data", "Treat LLM-generated code with the same scrutiny you\u2019d give to code from someone you don\u2019t know"], challenge: "Can you add automated security scanning to your process? That turns a reliance on human diligence into an automated check." };
+    if (ans.securityReview === "human") {
+      if (ans.codeRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 REVIEW WILL ERODE", summary: "You have tests and human security review, which is a good start. But this happens regularly, and a person is doing the security review each time. People check carefully at first. Then they start skimming. Then they stop checking altogether.", guidance: ["Move to automated security scanning \u2014 that\u2019s the single change that makes this fully reliable", "If you can\u2019t automate, rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each security review takes \u2014 if it\u2019s getting shorter, attention is fading", "Set up alerts for common vulnerability patterns that can be caught automatically"], challenge: "Can you replace the human security review with automated scanning? That single change makes this viable long-term." };
+      return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND REVIEW", summary: "This is a solid setup for a one-off task. The LLM writes the code, automated tests check that it works, and a person reviews for security.", guidance: ["Complete the security review before using the code \u2014 not after", "Pay close attention to how the code handles user input, authentication, and sensitive data", "If this starts happening regularly, consider switching to automated security scanning", "Track which code was LLM-generated, so you know what to look at if issues arise"], challenge: null };
+    }
+    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND AUTOMATED REVIEW", summary: "This is a strong setup. The LLM writes the code, automated tests check that it works, and automated security scanning catches vulnerabilities. You\u2019re never trusting the LLM \u2014 you\u2019re always checking its work through independent systems.", guidance: ["Keep your tests comprehensive \u2014 they\u2019re your real safety net, not the LLM\u2019s confidence", "Keep the security scanning rules up to date as the codebase changes", "Track which code was LLM-generated, so you know what to look at if issues arise", "If test coverage drops, your ability to trust LLM-generated code drops with it"], challenge: null };
+  }
+
+  // SUMMARISING
+  if (ans.taskType === "summarising") {
+    if (ans.sourceCheck === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "Giving the LLM your documents doesn\u2019t prevent fabrication. It just means the fabrication sounds more like your data. If you can\u2019t check whether the output faithfully represents the source material, you\u2019re trusting that the LLM got it right. It might have dropped key details, invented connections, or subtly changed meaning.", guidance: ["Ask yourself: could I compare the output to the original and spot errors?", "If the source material is too long or complex to check against, the LLM\u2019s output can\u2019t be trusted either", "Consider whether a structured extraction (specific fields, specific format) would be more checkable than a free-form summary", "If you need a summary you can trust, a person needs to write it"], challenge: "If the LLM dropped a critical detail from a 50-page report, or subtly changed the meaning of a finding, would you catch it?" };
+    if (ans.sourceCheckMethod === "human" && ans.sourceRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECKING WILL FADE", summary: "You can check the output against the source, but it relies on a person doing it every time, and this task repeats. People check carefully at first. Then they start skimming. This can work, but only if you actively protect the quality of the review.", guidance: ["Rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each review takes \u2014 if reviews are getting shorter, attention is fading", "Automate what you can: word counts, key entity matching, structural validation \u2014 even partial automation reduces the burden on the human reviewer", "Set a calendar reminder to reassess this process in 3 months \u2014 is the checking still happening properly?"], challenge: "Can you automate even part of the checking? That reduces the load on the human reviewer and makes this sustainable." };
+    if (ans.sourceCheckMethod === "human" && ans.sourceRepetition === "once") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECK THIS SPECIFIC OUTPUT", summary: "You can check the output against the source and this is a one-off task. But be honest with yourself: will you actually read the source material and compare? The whole point of using an LLM to summarise is to avoid reading the original. The danger is that you skip the checking because the summary looks convincing enough.", guidance: ["Check the output against the source before you use it, not after", "Look specifically for things that are missing, not just things that are wrong \u2014 omissions are harder to spot than errors", "Check that the emphasis and framing match the source, not just the facts", "Write down what you checked and how, so others know the output has been verified"], challenge: "Will you actually read the source material and compare it to the output? Be honest." };
+    if (ans.sourceCheckMethod === "automated" && ans.sourceRepetition === "once") return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 CHECK AND USE", summary: "You have an automated way to check the output against the source, and this is a one-off task. Run the check before trusting the results.", guidance: ["Run the automated check before using the output in any decision or presentation", "If the check flags problems, investigate \u2014 don\u2019t just override it", "If this task starts happening regularly, make sure the automation is robust enough for ongoing use"], challenge: null };
+    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "This is a solid setup. The LLM transforms the source material, an automated system checks the output against the original, and it runs on an ongoing basis without depending on anyone remembering to look.", guidance: ["Look after the checking system itself \u2014 it\u2019s now your most important safety net", "Set up alerts for when the checks catch errors, and track how often that happens over time", "Periodically review both the LLM output and the checking system with fresh eyes", "If the checking system breaks, stop the process \u2014 don\u2019t fall back to having a person review it as a permanent fix"], challenge: null };
+  }
+
+  // ANALYSIS
+  if (ans.taskType === "analysis") {
+    if (ans.structuralVerification === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t check the output against something real and independent, you\u2019re just reading it and deciding whether it sounds right. An LLM is specifically designed to sound right. This is exactly how the Reddit failure happened.", guidance: ["Ask yourself: does the answer to this question exist somewhere I can check?", "If yes, build a way to compare the LLM\u2019s output to that real data", "If no, the LLM is making it up \u2014 confidently \u2014 and you can\u2019t tell the difference", "Could you restructure the task so the output becomes something you can check?"], challenge: "If this output were completely fabricated but perfectly convincing, how would you know?" };
+    if (ans.verificationMethod === "human" && ans.repetition === "recurring") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS \u2014 CHECKING WILL FADE", summary: "You have a way to check the output, but it relies on a person doing it every time, and this task repeats. People check carefully at first. Then they skim. Then they stop.", guidance: ["Automate the checking: build a system that compares LLM output to source data without needing a person", "If you can\u2019t automate, rotate who does the checking so the same person doesn\u2019t go on autopilot", "Set up alerts that flag when outputs look unusual compared to previous results", "If none of these are realistic, an LLM isn\u2019t the right tool for this recurring task"], challenge: "Can you turn the human check into an automated one? That single change makes this viable." };
+    if (ans.verificationMethod === "human" && ans.repetition === "once") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECK THIS SPECIFIC OUTPUT", summary: "You have a way to check the output and this is a one-off task, so checking fatigue doesn\u2019t apply. But be honest: will you actually do the checking, or will it look convincing enough that you skip it?", guidance: ["Check the output before you use it, not after", "Check against real data, not against your own sense of whether it \u201Clooks right\u201D", "If this task starts happening regularly, reassess \u2014 one-off diligence doesn\u2019t scale", "Write down what you checked and how"], challenge: "Will you actually check this output against source data before using it? Be honest." };
+    if (ans.verificationMethod === "automated" && ans.repetition === "once") return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 CHECK AND USE", summary: "You have an automated way to check the output, and this is a one-off task. Run the check before trusting the results.", guidance: ["Run the automated check before using the output in any decision or presentation", "If the check flags problems, investigate \u2014 don\u2019t just override it", "If this task starts happening regularly, make sure the automation is robust enough"], challenge: null };
+    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "This is what good LLM use looks like. The LLM produces the output, an automated system checks it independently, and it runs on an ongoing basis without depending on anyone remembering to look.", guidance: ["Look after the checking system itself \u2014 it\u2019s now your most important safety net", "Set up alerts for when the checks catch errors, and track how often that happens", "Periodically review both the LLM output and the checking system with fresh eyes", "If the checking system breaks, stop the process \u2014 don\u2019t fall back to having a person review it as a permanent fix"], challenge: null };
+  }
+
+  // OTHER
+  if (ans.taskType === "other") return {
+    level: "caution", color: T.amber, label: "THIS TOOL CAN\u2019T ASSESS THIS TASK DIRECTLY",
+    summary: "Your task doesn\u2019t fit neatly into the categories Cassandra covers. That doesn\u2019t mean you shouldn\u2019t use an LLM, but it does mean you need to think through the risk yourself.",
+    guidance: [
+      "Ask the core question: if the LLM gets this wrong, how would you know?",
+      "If there\u2019s an independent way to check the output (data, a source document, a test), you\u2019re in a stronger position",
+      "If the only check is reading it and deciding whether it seems right, be very cautious \u2014 LLMs are designed to seem right",
+      "Consider whether any part of your task maps to one of the categories above, and run that part through Cassandra separately",
+    ],
+    challenge: "What would a wrong output look like, and would you be able to tell the difference?",
+  };
+
+  return null;
+}
+
+function getAnsweredPath(ans) {
+  const path = [];
+  const order = ["truth", "llmRole", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition"];
+  for (const qId of order) {
+    if (ans[qId]) {
+      const q = QUESTIONS[qId];
+      const opt = q.options.find(o => o.value === ans[qId]);
+      path.push({ question: q.question, answer: opt.label, color: opt.color });
+    }
+  }
+  return path;
+}
+
+function getQuestionHistory(ans) {
+  const history = [];
+  const simulate = {};
+  const allKeys = ["truth", "llmRole", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition"];
+  for (const key of allKeys) {
+    if (!ans[key]) continue;
+    const nextQ = getNextQuestion(simulate);
+    if (nextQ === key) { history.push(key); simulate[key] = ans[key]; }
+  }
+  return history;
+}
+
+const EXAMPLES = [
+  { label: "Quarterly churn analysis", description: "We want an LLM to explain why customer churn went up 12% last quarter and suggest what to do about it, using CRM data, support tickets, and market research.", tag: "DON\u2019T USE", tagColor: T.red, tagBg: T.redBg, tagBorder: T.redBorder },
+  { label: "Summarising support tickets", description: "Summarise 200 customer support tickets from last week into a trends report highlighting the most common issues, using the raw ticket data as the source. A person reads the summary and decides if it reflects what they saw in the queue.", tag: "CAUTION", tagColor: T.amber, tagBg: T.amberBg, tagBorder: T.amberBorder },
+  { label: "Extracting data from invoices", description: "Extract supplier names, amounts, and dates from 5,000 scanned invoices into a spreadsheet. An automated script checks extracted values against the OCR text from each invoice.", tag: "GO AHEAD", tagColor: T.green, tagBg: T.greenBg, tagBorder: T.greenBorder },
+];
+
+const REDDIT_FAILURE_MODES = [
+  { mode: "No real data at all", desc: "The LLM had no connection to real data. It made up numbers that looked realistic based on what sales reports typically contain." },
+  { mode: "Data connection broke silently", desc: "The LLM was connected to real data, but the connection stopped working. Instead of reporting an error, it quietly filled in the gaps with made-up numbers." },
+  { mode: "Filled in the blanks", desc: "The LLM had some real data but made up values whenever a query came back empty, blending real and fabricated numbers so seamlessly that nobody could tell the difference." },
+  { mode: "Real numbers, fake interpretation", desc: "The underlying numbers were real, but the LLM\u2019s explanations of what they meant \u2014 the trends, comparisons, and insights \u2014 were generated rather than calculated." },
+];
+
+// ─── DECISION TREE VISUAL ───
+function renderDecisionTree() {
+  const m = window.innerWidth <= 600;
+  const I = m ? 18 : 28; // indent
+  function node(label, color, depth, hasLine) {
+    return `<div class="tree-node" style="margin-left:${depth*I}px"><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div class="tree-dot" style="background:${color}"></div>${hasLine ? '<div style="width:2px;height:16px;background:var(--border);margin-top:2px"></div>' : ''}</div><span style="font-size:13px;color:var(--text-body);line-height:1.5">${label}</span></div>`;
+  }
+  function outcome(label, color, depth) {
+    const bg = color === T.green ? T.greenBg : color === T.amber ? T.amberBg : T.redBg;
+    const border = color === T.green ? T.greenBorder : color === T.amber ? T.amberBorder : T.redBorder;
+    return `<div class="tree-outcome" style="margin-left:${depth*I}px;background:${bg};border:1px solid ${border}"><span class="mono" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:${color}">${label}</span></div>`;
+  }
+  function branch(label, depth) {
+    return `<div class="tree-branch" style="margin-left:${depth*I}px"><span class="mono" style="font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text-tertiary)">${label}</span></div>`;
+  }
+
+  return `
+    ${node('<strong>Does accuracy matter?</strong>', T.navy, 0, true)}
+    ${branch('NO', 1)}${outcome('GO AHEAD', T.green, 1)}
+    ${branch('YES, ACCURACY MATTERS', 1)}${node('<strong>LLM producing or orchestrating tools?</strong>', T.navy, 1, true)}
+    ${branch('ORCHESTRATING', 2)}${node('Can see what LLM asked the tool?', T.navy, 2, true)}
+    ${branch('NO', 3)}${outcome("DON'T USE", T.red, 3)}
+    ${branch('YES', 3)}${node("Can check tool's raw output?", T.navy, 3, true)}
+    ${branch('NO', 4)}${outcome('CAUTION - trusting interpretation', T.amber, 4)}
+    ${branch('YES', 4)}${node('Full chain logged?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome('CAUTION - build logging', T.amber, 5)}
+    ${branch('YES', 5)}${node('Automated or human review?', T.navy, 5, true)}
+    ${branch('AUTOMATED', 6)}${outcome('GO AHEAD', T.green, 6)}
+    ${branch('HUMAN', 6)}${node('Will this repeat?', T.navy, 6, true)}
+    ${branch('ONE-OFF', 7)}${outcome('GO AHEAD - check this run', T.green, 7)}
+    ${branch('RECURRING', 7)}${outcome('CAUTION - review will erode', T.amber, 7)}
+    ${branch('PRODUCING DIRECTLY', 2)}${node('<strong>What kind of task?</strong>', T.navy, 2, true)}
+    ${branch('LABELLING', 3)}${node('Have training data?', T.navy, 3, true)}
+    ${branch('NO', 4)}${node('Can spot-check a sample?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
+    ${branch('YES', 5)}${outcome('CAUTION - measure before you trust', T.amber, 5)}
+    ${branch('YES', 4)}${node('Can freeze model version?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
+    ${branch('YES', 5)}${outcome('GO AHEAD - with accuracy checks', T.green, 5)}
+    ${branch('CODE', 3)}${node('Can write automated tests?', T.navy, 3, true)}
+    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
+    ${branch('YES', 4)}${node('Security review?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome('CAUTION - security gap', T.amber, 5)}
+    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD - with testing', T.green, 5)}
+    ${branch('HUMAN', 5)}${node('Will this repeat?', T.navy, 5, true)}
+    ${branch('ONE-OFF', 6)}${outcome('GO AHEAD - with testing and review', T.green, 6)}
+    ${branch('RECURRING', 6)}${outcome('CAUTION - review will erode', T.amber, 6)}
+    ${branch('SUMMARISING / EXTRACTING', 3)}${node('Can check against source?', T.navy, 3, true)}
+    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
+    ${branch('YES', 4)}${node('Automated or human checks?', T.navy, 4, true)}
+    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD', T.green, 5)}
+    ${branch('HUMAN', 5)}${node('Will this task repeat?', T.navy, 5, true)}
+    ${branch('ONE-OFF', 6)}${outcome('CAUTION - check this one', T.amber, 6)}
+    ${branch('RECURRING', 6)}${outcome('CAUTION - checking will fade', T.amber, 6)}
+    ${branch('ANALYSIS', 3)}${node('Can verify independently?', T.navy, 3, true)}
+    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
+    ${branch('YES', 4)}${node('Automated or human checks?', T.navy, 4, true)}
+    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD', T.green, 5)}
+    ${branch('HUMAN', 5)}${node('Will this task repeat?', T.navy, 5, true)}
+    ${branch('ONE-OFF', 6)}${outcome('CAUTION - verify this one', T.amber, 6)}
+    ${branch('RECURRING', 6)}${outcome("DON'T USE - checking will fade", T.red, 6)}
+    ${branch('NONE OF THESE FIT', 3)}${outcome('CAUTION - assess the risk yourself', T.amber, 3)}
+  `;
+}
+
+// ─── STATE ───
+let taskDescription = "";
+let answers = {};
+let phase = "input";
+let currentQuestion = null;
+let copied = false;
+
+function render() {
+  const app = document.getElementById("app");
+  if (phase === "input") app.innerHTML = renderInput();
+  else if (phase === "question") app.innerHTML = renderQuestion();
+  else app.innerHTML = renderOutcome();
+  bindEvents();
+}
+
+// ─── INPUT ───
+function renderInput() {
+  const valid = taskDescription.trim().length >= 10;
+  let exCards = '';
+  for (const ex of EXAMPLES) {
+    exCards += `<button class="example-btn" data-example="${esc(ex.label)}">
+      <span class="mono" style="font-size:10px;font-weight:600;letter-spacing:1px;color:${ex.tagColor};padding:3px 8px;background:${ex.tagBg};border:1px solid ${ex.tagBorder};border-radius:4px;flex-shrink:0">${ex.tag}</span>
+      <span style="font-size:15px;color:var(--text);font-weight:500">${esc(ex.label)}</span>
+    </button>`;
+  }
+
+  return `
+    <header style="margin-bottom:44px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--navy)"></div>
+        <span class="mono" style="font-size:11px;font-weight:600;letter-spacing:3px;color:var(--navy)">CASSANDRA</span>
+      </div>
+      <h1 class="serif" style="font-size:clamp(28px,5vw,42px);font-weight:600;line-height:1.2;margin:0 0 12px;color:var(--navy)">
+        Should you trust your <em style="font-weight:400">LLM output</em>?
+      </h1>
+      <p style="font-size:16px;color:var(--text-secondary);font-weight:400;line-height:1.7;max-width:580px">
+        Describe what you want your LLM to do. Cassandra asks a few questions to help you decide whether an LLM is the right tool for this task \u2014 and what checks you\u2019d need to trust the results.
+      </p>
+      <div style="width:48px;height:3px;background:var(--navy);margin-top:20px;border-radius:2px"></div>
+    </header>
+
+    <div style="margin-bottom:32px">
+      <div class="expandable">
+        <button class="expandable-header" data-expand="reddit">
+          <span>The VP and fake data</span>
+          <span class="expandable-chevron" id="chevron-reddit">\u25BE</span>
+        </button>
+        <div id="content-reddit" style="display:none">
+          <div class="expandable-content">
+            <p style="font-size:14px;color:var(--text-body);line-height:1.7;margin-bottom:14px">
+              A story shared on Reddit described an LLM agent that fabricated sales analytics for 3 months. The VP reportedly made territory decisions on fake data. The CFO presented it to the board. An analyst who raised concerns was told they were \u201Cslowing down innovation.\u201D It was caught by accident.
+            </p>
+            <p style="font-size:14px;color:var(--text-body);line-height:1.7;margin-bottom:14px">
+              An LLM doesn\u2019t work like a calculator or a database. It predicts the most plausible-sounding answer based on patterns it learned during training. Sometimes that answer is accurate. Sometimes it\u2019s completely made up. The LLM doesn\u2019t know the difference, and it sounds equally confident either way.
+            </p>
+            <p style="font-size:14px;color:var(--text-body);line-height:1.7">
+              So the question isn\u2019t \u201Ccan I trust this output?\u201D \u2014 it\u2019s <strong>\u201Cdo I have a way to check whether this output is actually right?\u201D</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="expandable">
+        <button class="expandable-header" data-expand="what">
+          <span>What does this tool do?</span>
+          <span class="expandable-chevron" id="chevron-what">\u25BE</span>
+        </button>
+        <div id="content-what" style="display:none">
+          <div class="expandable-content">
+            <p style="font-size:14px;color:var(--text-body);line-height:1.7">
+              Describe what you want your LLM to do, then answer a few questions about it. Cassandra follows a decision tree to reach one of three answers: <strong>go ahead</strong> (with the right checks in place), <strong>go ahead with caution</strong> (with specific conditions), or <strong>don\u2019t use an LLM for this</strong>. Some tasks simply aren\u2019t a good fit for LLMs, and Cassandra will tell you that directly.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="expandable">
+        <button class="expandable-header" data-expand="tree">
+          <span>Decision tree</span>
+          <span class="expandable-chevron" id="chevron-tree">\u25BE</span>
+        </button>
+        <div id="content-tree" style="display:none;overflow-x:auto">
+          <div class="expandable-content">
+            <p style="font-size:14px;color:var(--text-body);line-height:1.7;margin-bottom:16px">Cassandra walks you through between 1 and 7 of these questions, depending on the path your answers take.</p>
+            ${renderDecisionTree()}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:relative;margin-bottom:20px">
+      <textarea id="task-textarea" class="task-textarea" placeholder="Describe what you want your LLM to do...\n\ne.g. 'Produce weekly sales reports showing conversion rates and revenue by territory for the VP and CFO.'" style="min-height:180px">${esc(taskDescription)}</textarea>
+    </div>
+    <div class="start-row">
+      <button class="btn-primary" data-action="start" style="font-size:15px;padding:14px 28px" id="start-btn" ${valid ? '' : 'disabled'}>Start Assessment</button>
+      <span class="mono" style="font-size:11px;color:var(--text-tertiary)" id="start-hint">${valid ? '\u2318+Enter' : 'Describe your task first'}</span>
+    </div>
+    <div>
+      <span class="mono" style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--text-label);display:block;margin-bottom:12px">TRY AN EXAMPLE</span>
+      <div style="display:flex;flex-direction:column;gap:8px">${exCards}</div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-top:32px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:${T.green}"></div><span style="font-size:12px;color:var(--text-tertiary)">Lower risk</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:${T.amber}"></div><span style="font-size:12px;color:var(--text-tertiary)">Conditional</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:${T.red}"></div><span style="font-size:12px;color:var(--text-tertiary)">Higher risk</span></div>
+    </div>
+
+    <div style="margin-top:48px;text-align:center">
+      <span class="mono" style="font-size:10px;color:#9ca3af;letter-spacing:1px">${VERSION}</span>
+    </div>`;
+}
+
+// ─── QUESTION ───
+function renderQuestion() {
+  const qId = currentQuestion;
+  if (!qId) { phase = "outcome"; return renderOutcome(); }
+
+  const q = QUESTIONS[qId];
+  const current = answers[qId];
+  const shortDesc = taskDescription.length > 200 ? taskDescription.substring(0, 200) + "\u2026" : taskDescription;
+  const path = getAnsweredPath(answers);
+
+  let pathHTML = '';
+  if (path.length > 0) {
+    pathHTML = '<div style="margin-bottom:24px">';
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i];
+      pathHTML += `<div class="path-node"><div class="path-dot" style="background:${p.color}"></div><span style="font-size:13px;color:var(--text);font-weight:600">${esc(p.answer)}</span></div>`;
+      if (i < path.length - 1) pathHTML += `<div class="path-line" style="background:var(--border)"></div>`;
+    }
+    pathHTML += `<div class="path-line" style="background:var(--border)"></div>`;
+    pathHTML += '</div>';
+  }
+
+  let opts = '';
+  for (const opt of q.options) {
+    const sel = current === opt.value;
+    const bg = sel ? bgFor(opt.color) : 'var(--bg)';
+    const bc = sel ? borderFor(opt.color) : 'var(--border)';
+    const bw = sel ? '2px' : '1px';
+    opts += `<button class="option-btn" data-select="${opt.value}" style="background:${bg};border:${bw} solid ${bc}">
+      <span class="radio-outer" style="border-color:${sel ? opt.color : 'var(--card-border)'}">
+        ${sel ? `<span style="width:10px;height:10px;border-radius:50%;background:${opt.color};display:block"></span>` : ''}
+      </span>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:${sel ? 600 : 500};color:${sel ? 'var(--text)' : 'var(--text-body)'};margin-bottom:3px">${esc(opt.label)}</div>
+        <div style="font-size:13px;color:var(--text-tertiary);font-weight:400;line-height:1.6">${esc(opt.desc)}</div>
+      </div>
+    </button>`;
+  }
+
+  return `<div class="fade-up">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span class="mono" style="font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-label)">${q.label}</span>
+      <button class="btn-box" data-action="back">Back</button>
+    </div>
+    <div class="card" style="margin-bottom:20px;background:var(--navy-pale);border-color:#002C7720;padding:12px 18px">
+      <span class="mono" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--navy);display:block;margin-bottom:4px">YOUR TASK</span>
+      <p style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0">${esc(shortDesc)}</p>
+    </div>
+    ${pathHTML}
+    <h2 class="serif" style="font-size:24px;font-weight:600;color:var(--navy);margin:0 0 6px;line-height:1.3">${q.question}</h2>
+    <p style="font-size:14px;color:var(--text-secondary);margin:0 0 28px;line-height:1.6;font-style:italic">${q.subtitle}</p>
+    <div style="display:flex;flex-direction:column;gap:8px">${opts}</div>
+    <div style="margin-top:24px">
+      <button class="btn-primary" data-action="next" ${current ? '' : 'disabled'}>Next</button>
+    </div>
+  </div>`;
+}
+
+// ─── OUTCOME ───
+function renderOutcome() {
+  const outcome = getOutcome(answers);
+  if (!outcome) { phase = "input"; return renderInput(); }
+
+  const path = getAnsweredPath(answers);
+  const shortDesc = taskDescription.length > 300 ? taskDescription.substring(0, 300) + "\u2026" : taskDescription;
+
+  let pathHTML = '<div style="margin-bottom:32px">';
+  pathHTML += '<h3 class="mono" style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--text-label);margin-bottom:12px">YOUR DECISION PATH</h3>';
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    pathHTML += `<div style="display:flex;align-items:flex-start;gap:14px;padding:6px 0">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+        <div style="width:10px;height:10px;border-radius:50%;background:${p.color}"></div>
+        ${i < path.length - 1 ? '<div style="width:2px;height:28px;background:var(--border);margin-top:4px"></div>' : ''}
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:2px">${esc(p.question)}</div>
+        <div style="font-size:14px;color:var(--text);font-weight:600">${esc(p.answer)}</div>
+      </div>
+    </div>`;
+  }
+  pathHTML += '</div>';
+
+  let guidance = '';
+  if (outcome.guidance.length > 0) {
+    guidance = '<div style="margin-bottom:32px"><h3 class="mono" style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--text-label);margin-bottom:12px">';
+    guidance += outcome.level === "dont_use" ? 'WHAT TO DO INSTEAD' : 'WHAT YOU NEED IN PLACE';
+    guidance += '</h3><div style="display:flex;flex-direction:column;gap:6px">';
+    outcome.guidance.forEach((g, i) => {
+      guidance += `<div class="card guidance-num">
+        <span class="mono" style="font-size:11px;color:var(--navy);flex-shrink:0;margin-top:2px;font-weight:600">${String(i+1).padStart(2,'0')}</span>
+        <span style="font-size:14px;color:var(--text-body);line-height:1.65">${esc(g)}</span>
+      </div>`;
+    });
+    guidance += '</div></div>';
+  }
+
+  let challenge = '';
+  if (outcome.challenge) {
+    challenge = `<div class="challenge-box" style="background:${bgFor(outcome.color)};border:1px solid ${borderFor(outcome.color)}">
+      <span class="mono" style="font-size:10px;font-weight:600;letter-spacing:2px;color:${outcome.color};display:block;margin-bottom:8px">CHALLENGE</span>
+      <p class="serif" style="font-size:17px;font-style:italic;color:var(--text);line-height:1.7;margin:0;font-weight:500">${esc(outcome.challenge)}</p>
+    </div>`;
+  }
+
+  let redditSection = '';
+  if (outcome.level === "dont_use" && answers.taskType === "analysis" && answers.structuralVerification === "no") {
+    let modes = '';
+    for (const fm of REDDIT_FAILURE_MODES) modes += `<div class="card"><span style="font-size:14px;color:var(--text);font-weight:600;display:block;margin-bottom:4px">${esc(fm.mode)}</span><span style="font-size:14px;color:var(--text-secondary);line-height:1.6">${esc(fm.desc)}</span></div>`;
+    redditSection = `<div style="margin-bottom:32px">
+      <h3 class="mono" style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--text-label);margin-bottom:6px">HOW THE REDDIT FAILURE HAPPENED</h3>
+      <p style="font-size:14px;color:var(--text-secondary);font-style:italic;line-height:1.65;margin:0 0 14px">The Reddit story doesn\u2019t say exactly what went wrong technically. But every one of these scenarios produces the same result: numbers that look real but aren\u2019t.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">${modes}</div>
+    </div>`;
+  }
+
+  // Conditional principle
+  let principle;
+  if (outcome.level === "proceed") {
+    principle = `<p class="serif" style="font-size:17px;font-style:italic;color:var(--navy);line-height:1.6;margin:0 0 4px;font-weight:500">\u201CYou\u2019ve built the checks. Now look after them.\u201D</p>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6">The systems you have in place are your safety net. Keep them working.</p>`;
+  } else if (outcome.level === "clear") {
+    principle = `<p class="serif" style="font-size:17px;font-style:italic;color:var(--navy);line-height:1.6;margin:0 0 4px;font-weight:500">\u201CExplore freely. Label clearly.\u201D</p>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6">When accuracy doesn\u2019t matter, LLMs are a great tool. Just make sure others know the output hasn\u2019t been checked.</p>`;
+  } else {
+    principle = `<p class="serif" style="font-size:17px;font-style:italic;color:var(--navy);line-height:1.6;margin:0 0 4px;font-weight:500">\u201CAutomatic checks beat good intentions every time.\u201D</p>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6">Build systems where mistakes are caught automatically, not by someone remembering to look.</p>`;
+  }
+
+  // Copy text
+  const copyText = generateCopyText(outcome, path);
+
+  return `<div class="fade-up">
+    <div class="top-actions">
+      <button class="btn-box" data-action="back">Change last answer</button>
+      <button class="btn-box" data-action="reset">Start over</button>
+    </div>
+    <div class="card" style="margin-bottom:24px;background:var(--navy-pale);border-color:#002C7720">
+      <span class="mono" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--navy);display:block;margin-bottom:6px">TASK DESCRIPTION</span>
+      <p style="font-size:14px;color:var(--text-body);line-height:1.65;margin:0">${esc(shortDesc)}</p>
+    </div>
+    <div class="verdict-box" style="background:${bgFor(outcome.color)};border:1px solid ${borderFor(outcome.color)}">
+      <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:${outcome.color}"></div>
+      <div class="mono" style="font-size:12px;font-weight:600;letter-spacing:3px;color:${outcome.color};margin-bottom:12px">${outcome.label}</div>
+      <p style="font-size:16px;color:var(--text-body);line-height:1.75;font-weight:400">${esc(outcome.summary)}</p>
+    </div>
+    <p style="font-size:13px;color:var(--text-tertiary);line-height:1.6;margin:0 0 28px;font-style:italic">
+      Cassandra is a thinking tool, not a certified assessment. It helps you ask the right questions about how you\u2019re using LLMs. The answer is a starting point for your own judgement, not a replacement for it.
+    </p>
+    ${pathHTML}
+    ${guidance}
+    ${redditSection}
+    ${challenge}
+    <div class="principle-box">${principle}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn-outline" data-action="reset" style="flex:1;min-width:200px">Assess Another Task</button>
+      <button class="btn-box" data-action="copy" id="copy-btn" style="padding:12px 28px;font-size:14px">${copied ? 'Copied!' : 'Copy results'}</button>
+    </div>
+    <div style="margin-top:48px;text-align:center">
+      <span class="mono" style="font-size:10px;color:#9ca3af;letter-spacing:1px">${VERSION}</span>
+    </div>
+    <textarea id="copy-data" style="position:absolute;left:-9999px">${esc(copyText)}</textarea>
+  </div>`;
+}
+
+function generateCopyText(outcome, path) {
+  let text = "CASSANDRA ASSESSMENT\n\n";
+  text += "Task: " + taskDescription + "\n\n";
+  text += "Result: " + outcome.label + "\n\n";
+  text += outcome.summary + "\n\n";
+  text += "Decision path:\n";
+  path.forEach(p => { text += "  " + p.question + " \u2192 " + p.answer + "\n"; });
+  if (outcome.guidance.length > 0) {
+    text += "\n" + (outcome.level === "dont_use" ? "What to do instead:" : "What you need in place:") + "\n";
+    outcome.guidance.forEach((g, i) => { text += "  " + (i+1) + ". " + g + "\n"; });
+  }
+  if (outcome.challenge) text += "\nChallenge: " + outcome.challenge + "\n";
+  text += "\n" + VERSION;
+  return text;
+}
+
+// ─── EVENT BINDING ───
+function bindEvents() {
+  document.querySelectorAll("[data-expand]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.expand;
+      const content = document.getElementById("content-" + id);
+      const chevron = document.getElementById("chevron-" + id);
+      if (content.style.display === "none") { content.style.display = "block"; chevron.style.transform = "rotate(180deg)"; }
+      else { content.style.display = "none"; chevron.style.transform = "rotate(0deg)"; }
+    });
+  });
+
+  const textarea = document.getElementById("task-textarea");
+  const startBtn = document.getElementById("start-btn");
+  const startHint = document.getElementById("start-hint");
+  if (textarea && startBtn) {
+    textarea.addEventListener("input", () => {
+      taskDescription = textarea.value;
+      const valid = taskDescription.trim().length >= 10;
+      startBtn.disabled = !valid;
+      if (startHint) startHint.textContent = valid ? "\u2318+Enter" : "Describe your task first";
+    });
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && taskDescription.trim().length >= 10) {
+        answers = {}; currentQuestion = "truth"; phase = "question"; render();
+      }
+    });
+  }
+
+  document.querySelectorAll("[data-example]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ex = EXAMPLES.find(e => e.label === btn.dataset.example);
+      if (ex) {
+        taskDescription = ex.description;
+        render();
+        setTimeout(() => {
+          const ta = document.getElementById("task-textarea");
+          if (ta) ta.scrollIntoView({ behavior: "smooth", block: "center" });
+          const sb = document.getElementById("start-btn");
+          if (sb) { sb.style.animation = "btnPulse 1.5s ease-in-out 3"; setTimeout(() => sb.style.animation = "", 4500); }
+        }, 50);
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-select]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (currentQuestion) {
+        answers[currentQuestion] = btn.dataset.select;
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const a = btn.dataset.action;
+      if (a === "start" && taskDescription.trim().length >= 10) {
+        answers = {}; currentQuestion = "truth"; phase = "question"; render();
+      }
+      else if (a === "next") {
+        const nextAfterCurrent = getNextQuestion(answers);
+        if (!nextAfterCurrent) { phase = "outcome"; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+        else { currentQuestion = nextAfterCurrent; render(); }
+      }
+      else if (a === "back") {
+        if (phase === "outcome") {
+          phase = "question"; copied = false;
+          const history = getQuestionHistory(answers);
+          if (history.length > 0) {
+            const lastQ = history[history.length - 1];
+            delete answers[lastQ];
+            currentQuestion = lastQ;
+          }
+          render();
+        } else {
+          const history = getQuestionHistory(answers);
+          const currentIdx = history.indexOf(currentQuestion);
+          if (currentIdx > 0) {
+            const prevQ = history[currentIdx - 1];
+            delete answers[prevQ];
+            currentQuestion = prevQ;
+            render();
+          } else {
+            delete answers[currentQuestion];
+            phase = "input"; currentQuestion = null; render();
+          }
+        }
+      }
+      else if (a === "reset") { taskDescription = ""; answers = {}; currentQuestion = null; copied = false; phase = "input"; render(); }
+      else if (a === "copy") {
+        const el = document.getElementById("copy-data");
+        if (el) {
+          navigator.clipboard.writeText(el.value).then(() => {
+            copied = true; render();
+            setTimeout(() => { copied = false; render(); }, 2000);
+          }).catch(() => {
+            el.style.left = "0"; el.select();
+            document.execCommand("copy");
+            el.style.left = "-9999px";
+            copied = true; render();
+            setTimeout(() => { copied = false; render(); }, 2000);
+          });
+        }
+      }
+    });
+  });
+}
+
+render();
+</script>
+</body>
+</html>
