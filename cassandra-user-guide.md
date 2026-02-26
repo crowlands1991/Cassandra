@@ -28,7 +28,7 @@ The two tools share the same underlying logic for assessing individual LLM tasks
 
 ## How it works
 
-You describe a task you're considering using an LLM for. Cassandra then walks you through a series of questions, between 2 and 7 depending on the path:
+You describe a task you're considering using an LLM for. Cassandra then walks you through a series of questions, between 1 and 7 depending on the path:
 
 1. **Does accuracy matter?** If not, you're clear to use an LLM freely.
 2. **Is the LLM producing the output itself, or using tools?** An LLM generating a report is different from an LLM that writes a database query and summarises the results. Each has its own path.
