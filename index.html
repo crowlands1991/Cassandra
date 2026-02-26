@@ -369,9 +369,9 @@ function getQuestionHistory(ans) {
 }
 
 const EXAMPLES = [
+  { label: "Categorising survey comments", description: "Sort 44,000 employee survey comments into predefined categories (career progression, workload, management, compensation, culture) and sentiment (positive, negative, mixed). We have 500 hand-labelled examples from last year\u2019s survey and can lock the model version.", tag: "GO AHEAD", tagColor: T.green, tagBg: T.greenBg, tagBorder: T.greenBorder },
   { label: "Quarterly churn analysis", description: "We want an LLM to explain why customer churn went up 12% last quarter and suggest what to do about it, using CRM data, support tickets, and market research.", tag: "DON\u2019T USE", tagColor: T.red, tagBg: T.redBg, tagBorder: T.redBorder },
   { label: "Summarising support tickets", description: "Summarise 200 customer support tickets from last week into a trends report highlighting the most common issues, using the raw ticket data as the source. A person reads the summary and decides if it reflects what they saw in the queue.", tag: "CAUTION", tagColor: T.amber, tagBg: T.amberBg, tagBorder: T.amberBorder },
-  { label: "Extracting data from invoices", description: "Extract supplier names, amounts, and dates from 5,000 scanned invoices into a spreadsheet. An automated script checks extracted values against the OCR text from each invoice.", tag: "GO AHEAD", tagColor: T.green, tagBg: T.greenBg, tagBorder: T.greenBorder },
 ];
 
 const REDDIT_FAILURE_MODES = [
