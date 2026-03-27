@@ -240,6 +240,16 @@ const QUESTIONS = {
     { value: "consequential", label: "It reaches other people or informs decisions", desc: "The output goes into a report, a shared drive, a dashboard, a presentation, or a conversation. Someone may act on it. You can correct it, but you can\u2019t control whether someone has already used it.", color: T.amber },
     { value: "irreversible", label: "It triggers an action that can\u2019t be undone", desc: "The output is sent to a client, published, submitted to a regulator, used in pricing, or triggers a financial transaction. These cannot be recalled.", color: T.red },
   ]},
+  dataCurrency: { id: "dataCurrency", label: "DATA CURRENCY", question: "Is the data the LLM is working from current, and would you know if it wasn\u2019t?", subtitle: "Any analysis can be undermined by stale data. The specific AI problem is that the LLM presents stale and current information with identical confidence. There is no flag. A human analyst would say \u2018this is from 18 months ago.\u2019 The LLM will not.", options: [
+    { value: "current", label: "Data is current and we can verify that", desc: "We control the data source. We know when it was last updated. The LLM is working from information we\u2019ve confirmed is current.", color: T.green },
+    { value: "mixed", label: "Some parts may be stale but we can check", desc: "The data comes from multiple sources. Some may be out of date. We can identify which parts to verify.", color: T.amber },
+    { value: "unknown", label: "We don\u2019t know if the data is current", desc: "The LLM is working from its training data or from sources we haven\u2019t checked. We wouldn\u2019t know if the information is out of date.", color: T.red },
+  ]},
+  judgementComplexity: { id: "judgementComplexity", label: "JUDGEMENT", question: "Does this task require domain expertise or real-world calibration the LLM doesn\u2019t have?", subtitle: "LLMs are good at pattern matching and synthesis. They are not good at tasks that require grounding in current conditions, domain-specific calibration, or interpretive depth that comes from experience. Better prompts do not provide missing calibration.", options: [
+    { value: "low", label: "No \u2014 the task is straightforward", desc: "The task follows clear rules or patterns. It doesn\u2019t require specialist judgement or contextual understanding.", color: T.green },
+    { value: "medium", label: "Some \u2014 but we can check the key judgements", desc: "The task involves some interpretation, but the critical judgement calls can be identified and verified by someone with the right expertise.", color: T.amber },
+    { value: "high", label: "Yes \u2014 it needs expertise the LLM lacks", desc: "The task requires domain knowledge, precedent awareness, regulatory understanding, or relationship context that the LLM cannot have.", color: T.red },
+  ]},
   orchTransparency: { id: "orchTransparency", label: "TRANSPARENCY", question: "Can you see what the LLM asked the tool to do?", subtitle: "If the LLM writes a database query, can you see the query? If it calls an API, can you see the request? The tool might be reliable, but you need to know whether the LLM asked the right question.", options: [
     { value: "yes", label: "Yes \u2014 we can see the LLM\u2019s instructions to the tool", desc: "The queries, API calls, or code the LLM generates are visible and reviewable.", color: T.green },
     { value: "no", label: "No \u2014 we only see the final output", desc: "We can\u2019t see what the LLM asked the tool to do, only what came back.", color: T.red },
@@ -268,6 +278,8 @@ function getNextQuestion(ans) {
   if (ans.truth === "no") return null;
   if (!ans.llmRole) return "llmRole";
   if (!ans.consequence) return "consequence";
+  if (!ans.dataCurrency) return "dataCurrency";
+  if (!ans.judgementComplexity) return "judgementComplexity";
 
   if (ans.llmRole === "orchestrating") {
     if (!ans.orchTransparency) return "orchTransparency"; if (ans.orchTransparency === "no") return null;
@@ -385,13 +397,13 @@ function getOutcome(ans) {
   return null;
 }
 
-// ─── CONSEQUENCE MODIFIER ───
-function applyConsequenceModifier(outcome, ans) {
-  if (!outcome || !ans.consequence) return outcome;
+// ─── UNIVERSAL DIMENSION MODIFIERS ───
+function applyUniversalModifiers(outcome, ans) {
+  if (!outcome) return outcome;
   
-  // If consequence is irreversible and verdict is CAUTION, escalate to DON'T USE
+  // === CONSEQUENCE ===
   if (ans.consequence === "irreversible" && outcome.level === "caution") {
-    return {
+    outcome = {
       ...outcome,
       level: "dont_use",
       color: T.red,
@@ -400,21 +412,47 @@ function applyConsequenceModifier(outcome, ans) {
       guidance: [...outcome.guidance, "The consequence of error here is irreversible. Human-dependent checking is not reliable enough for this level of risk. Either build fully automated verification or remove the LLM from this task."],
     };
   }
-  
-  // If consequence is irreversible and verdict is GO AHEAD with human elements, add warning
   if (ans.consequence === "irreversible" && outcome.level === "proceed") {
-    return {
+    outcome = {
       ...outcome,
       summary: outcome.summary + " Note: the consequence of error here is irreversible. Your verification setup is sound, but monitor it closely. If any part of the checking degrades, the risk becomes unacceptable.",
       guidance: [...outcome.guidance, "Because errors here are irreversible, treat any degradation in your verification process as a critical issue, not a maintenance item."],
     };
   }
-  
-  // If consequence is contained, add reassurance to CAUTION verdicts
   if (ans.consequence === "contained" && outcome.level === "caution") {
-    return {
+    outcome = {
       ...outcome,
       summary: outcome.summary + " The saving grace: this output stays in your workspace until you choose to share it. You have time to check before it matters.",
+    };
+  }
+  
+  // === DATA CURRENCY ===
+  if (ans.dataCurrency === "unknown" && (outcome.level === "proceed" || outcome.level === "caution")) {
+    outcome = {
+      ...outcome,
+      guidance: [...outcome.guidance, "You don\u2019t know whether the data the LLM is working from is current. Stale and current information are presented with identical confidence. Before trusting this output, verify that the underlying data is up to date."],
+    };
+  }
+  if (ans.dataCurrency === "unknown" && outcome.level === "clear") {
+    // Don't modify "accuracy doesn't matter" verdicts
+  }
+  
+  // === JUDGEMENT COMPLEXITY ===
+  if (ans.judgementComplexity === "high" && outcome.level === "caution") {
+    outcome = {
+      ...outcome,
+      level: "dont_use",
+      color: T.red,
+      label: outcome.label.replace(/GO AHEAD WITH CAUTION/, "DON\u2019T USE AN LLM FOR THIS"),
+      summary: outcome.summary + " This task requires domain expertise the LLM does not have. The output may be plausible but miscalibrated in ways that only a specialist would recognise. Human-dependent checking is not enough if the checker also lacks the required expertise.",
+      guidance: [...outcome.guidance, "This task needs judgement grounded in domain experience, current conditions, or precedent the LLM cannot access. Better prompts will not fix this."],
+    };
+  }
+  if (ans.judgementComplexity === "high" && outcome.level === "proceed") {
+    outcome = {
+      ...outcome,
+      summary: outcome.summary + " Note: this task requires specialist judgement. Your verification is automated, which is good, but make sure the verification criteria were set by someone with the relevant domain expertise.",
+      guidance: [...outcome.guidance, "The automated checks are only as good as the criteria they test against. Make sure those criteria reflect genuine domain knowledge, not just structural validation."],
     };
   }
   
@@ -423,7 +461,7 @@ function applyConsequenceModifier(outcome, ans) {
 
 function getAnsweredPath(ans) {
   const path = [];
-  const order = ["truth", "llmRole", "consequence", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
+  const order = ["truth", "llmRole", "consequence", "dataCurrency", "judgementComplexity", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
   for (const qId of order) {
     if (ans[qId]) {
       const q = QUESTIONS[qId];
@@ -437,7 +475,7 @@ function getAnsweredPath(ans) {
 function getQuestionHistory(ans) {
   const history = [];
   const simulate = {};
-  const allKeys = ["truth", "llmRole", "consequence", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
+  const allKeys = ["truth", "llmRole", "consequence", "dataCurrency", "judgementComplexity", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
   for (const key of allKeys) {
     if (!ans[key]) continue;
     const nextQ = getNextQuestion(simulate);
@@ -479,7 +517,7 @@ function renderDecisionTree() {
     ${node('<strong>Does accuracy matter?</strong>', T.navy, 0, true)}
     ${branch('NO', 1)}${outcome('GO AHEAD', T.green, 1)}
     ${branch('YES, ACCURACY MATTERS', 1)}${node('<strong>LLM producing or orchestrating tools?</strong>', T.navy, 1, true)}
-    <div style="margin-left:${2*I}px;margin-bottom:8px;margin-top:4px"><span style="font-size:11px;color:var(--text-tertiary);font-style:italic">+ Consequence of error is asked for every task (contained / consequential / irreversible). Irreversible consequence escalates any CAUTION verdict to DON\u2019T USE.</span></div>
+    <div style="margin-left:${2*I}px;margin-bottom:8px;margin-top:4px"><span style="font-size:11px;color:var(--text-tertiary);font-style:italic">+ Three universal dimensions are asked for every task: Consequence of error (contained / consequential / irreversible), Data currency (current / mixed / unknown), and Judgement complexity (low / medium / high). Irreversible consequence or high judgement complexity escalates any CAUTION verdict to DON\u2019T USE.</span></div>
     ${branch('ORCHESTRATING', 2)}${node('Can see what LLM asked the tool?', T.navy, 2, true)}
     ${branch('NO', 3)}${outcome("DON'T USE", T.red, 3)}
     ${branch('YES', 3)}${node("Can check tool's raw output?", T.navy, 3, true)}
@@ -703,7 +741,7 @@ function renderQuestion() {
 // ─── OUTCOME ───
 function renderOutcome() {
   const rawOutcome = getOutcome(answers);
-  const outcome = applyConsequenceModifier(rawOutcome, answers);
+  const outcome = applyUniversalModifiers(rawOutcome, answers);
   if (!outcome) { phase = "input"; return renderInput(); }
 
   const path = getAnsweredPath(answers);
@@ -937,4 +975,3 @@ render();
 </script>
 </body>
 </html>
-
