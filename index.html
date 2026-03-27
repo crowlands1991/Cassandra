@@ -408,8 +408,13 @@ function applyUniversalModifiers(outcome, ans) {
       level: "dont_use",
       color: T.red,
       label: outcome.label.replace(/GO AHEAD WITH CAUTION/, "DON\u2019T USE AN LLM FOR THIS"),
-      summary: outcome.summary + " And critically: if this output is wrong, the consequences are irreversible. A caution-level check is not enough when errors cannot be recalled. Either automate the verification fully or do not use an LLM for this task.",
-      guidance: [...outcome.guidance, "The consequence of error here is irreversible. Human-dependent checking is not reliable enough for this level of risk. Either build fully automated verification or remove the LLM from this task."],
+      summary: outcome.summary + " And critically: if this output is wrong, the consequences are irreversible. A caution-level check is not enough when errors cannot be recalled.",
+      guidance: [
+        "The consequence of error here is irreversible. Human-dependent checking is not reliable enough for this level of risk.",
+        "Either build fully automated verification or remove the LLM from this task.",
+        "If you can automate the verification completely, reassess. Automated checks change the risk profile.",
+        "Until then, a person needs to do this work.",
+      ],
     };
   }
   if (ans.consequence === "irreversible" && outcome.level === "proceed") {
@@ -444,8 +449,13 @@ function applyUniversalModifiers(outcome, ans) {
       level: "dont_use",
       color: T.red,
       label: outcome.label.replace(/GO AHEAD WITH CAUTION/, "DON\u2019T USE AN LLM FOR THIS"),
-      summary: outcome.summary + " This task requires domain expertise the LLM does not have. The output may be plausible but miscalibrated in ways that only a specialist would recognise. Human-dependent checking is not enough if the checker also lacks the required expertise.",
-      guidance: [...outcome.guidance, "This task needs judgement grounded in domain experience, current conditions, or precedent the LLM cannot access. Better prompts will not fix this."],
+      summary: outcome.summary + " This task requires domain expertise the LLM does not have. The output may be plausible but miscalibrated in ways that only a specialist would recognise.",
+      guidance: [
+        "This task needs judgement grounded in domain experience, current conditions, or precedent the LLM cannot access.",
+        "Better prompts will not fix this. The limitation is in the model, not the instruction.",
+        "Consider whether parts of this task are separable: some elements may be automatable even if the overall judgement is not.",
+        "A person with the relevant expertise needs to do this work, or at minimum, make the critical judgement calls.",
+      ],
     };
   }
   if (ans.judgementComplexity === "high" && outcome.level === "proceed") {
