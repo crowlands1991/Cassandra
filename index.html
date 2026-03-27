@@ -156,11 +156,10 @@ const QUESTIONS = {
     { value: "orchestrating", label: "The LLM uses tools or systems", desc: "The LLM calls APIs, writes database queries, runs code, or uses other tools. The actual work is done by a reliable system, with the LLM as the intermediary.", color: T.amber },
   ]},
   taskType: { id: "taskType", label: "TASK TYPE", question: "What kind of task is this?", subtitle: "Different types of work have different ways of checking whether the LLM got it right.", options: [
+    { value: "deterministic", label: "Retrieval, extraction, code, or calculation", desc: "The LLM retrieves data, extracts fields from a source, writes code or formulas, or performs operations where the output can be structurally checked. Same input should produce the same output.", color: T.green },
     { value: "labelling", label: "Sorting or labelling data", desc: "Putting items into predefined categories: tagging sentiment, classifying topics, labelling types.", color: T.green },
-    { value: "code", label: "Writing code or formulas", desc: "The LLM produces code, scripts, or formulas that can be run and tested.", color: T.amber },
-    { value: "summarising", label: "Summarising or extracting", desc: "Condensing documents, extracting structured data from text, translating content. The LLM is transforming source material you provide.", color: T.amber },
-    { value: "analysis", label: "Analysis, numbers, or written output", desc: "Insights, recommendations, calculations, reports \u2014 anything where the LLM is generating conclusions, not just transforming what you gave it.", color: T.red },
-    { value: "other", label: "None of these fit", desc: "The task doesn\u2019t map neatly to any of the categories above.", color: T.navy },
+    { value: "analysis", label: "Analysis, interpretation, or summarisation", desc: "Drawing conclusions, interpreting data, summarising meaning, identifying trends. The LLM is producing claims or condensing meaning, not just transforming what you gave it.", color: T.red },
+    { value: "generation", label: "Drafting, writing, or producing content", desc: "Drafting emails, writing reports, creating narratives, producing recommendations. The output is new text, not a transformation of existing material.", color: T.red },
   ]},
   finetuneData: { id: "finetuneData", label: "TRAINING DATA", question: "Do you have hundreds of correctly labelled examples to train the LLM on your specific task?", subtitle: "Without training on your actual data, the LLM is guessing based on general knowledge. Giving it a few examples in a prompt is not the same as proper training.", options: [
     { value: "yes", label: "Yes \u2014 we have enough labelled examples", desc: "Hundreds of items with verified correct labels that match our specific categories.", color: T.green },
@@ -211,6 +210,36 @@ const QUESTIONS = {
     { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally. Someone will check this specific output.", color: T.green },
     { value: "recurring", label: "Recurring \u2014 weekly, monthly, or ongoing", desc: "This will run repeatedly, producing outputs that feed into ongoing decisions.", color: T.amber },
   ]},
+  detSubType: { id: "detSubType", label: "WHAT KIND OF DETERMINISTIC TASK", question: "Is the LLM writing code, or doing something else (retrieval, extraction, calculation)?", subtitle: "Code has specific verification steps (automated tests, security review). Other deterministic tasks need different checks.", options: [
+    { value: "code", label: "Writing code, scripts, or formulas", desc: "The LLM produces code that can be run and tested.", color: T.amber },
+    { value: "extraction", label: "Retrieval, extraction, or calculation", desc: "Pulling data from a source, extracting specific fields, or performing a structured operation. The output can be checked against the source.", color: T.green },
+  ]},
+  extractionSourceCheck: { id: "extractionSourceCheck", label: "SOURCE CHECKING", question: "Can you check the extracted output against the original source?", subtitle: "Extraction is only deterministic if you can verify the result against where it came from.", options: [
+    { value: "automated", label: "Yes \u2014 automatically", desc: "A script or system compares extracted values against the source.", color: T.green },
+    { value: "human", label: "Yes \u2014 a person checks it", desc: "Someone compares extracted values against the source manually.", color: T.amber },
+    { value: "no", label: "No \u2014 we trust the extraction", desc: "We don\u2019t have a way to check the output against the source.", color: T.red },
+  ]},
+  extractionRepetition: { id: "extractionRepetition", label: "HOW OFTEN", question: "Will this extraction happen regularly?", subtitle: "People check carefully the first time. By the fourth time, they skim.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 regular extraction", desc: "This will run repeatedly.", color: T.amber },
+  ]},
+  genOutputCheckable: { id: "genOutputCheckable", label: "CHECKING CRITERIA", question: "Are there clear, specific criteria to check the output against?", subtitle: "Not \u201Cdoes it sound right?\u201D but specific factual claims, required elements, structural requirements, or tone guidelines that can be independently verified.", options: [
+    { value: "yes", label: "Yes \u2014 there are specific things to check", desc: "Factual claims we can verify, required sections, specific tone or format requirements.", color: T.amber },
+    { value: "no", label: "No \u2014 quality is subjective", desc: "The only way to assess it is reading it and deciding whether it seems good enough.", color: T.red },
+  ]},
+  genCheckMethod: { id: "genCheckMethod", label: "HOW YOU CHECK", question: "Is this checking done automatically, or does a person do it each time?", subtitle: "Automated checks don\u2019t get tired, distracted, or busy. People do.", options: [
+    { value: "automated", label: "Automated \u2014 a system checks it", desc: "Scripts or validation rules check the output against the criteria.", color: T.green },
+    { value: "human", label: "A person checks it each time", desc: "Someone reviews the output against the criteria manually.", color: T.amber },
+  ]},
+  genRepetition: { id: "genRepetition", label: "HOW OFTEN", question: "Will this generation task happen regularly?", subtitle: "People check carefully the first time. By the fourth time, they skim. By the tenth, they stop.", options: [
+    { value: "once", label: "One-off or rare", desc: "A single task or something that happens occasionally.", color: T.green },
+    { value: "recurring", label: "Recurring \u2014 weekly, monthly, or ongoing", desc: "This will run repeatedly.", color: T.amber },
+  ]},
+  consequence: { id: "consequence", label: "CONSEQUENCE", question: "If this output is wrong and nobody catches it, what happens?", subtitle: "This isn\u2019t about whether you can fix it. It\u2019s about what happens in the time between the error and the discovery. Someone may have already made a decision, sent a message, or taken an action based on it.", options: [
+    { value: "contained", label: "Nothing leaves the workspace", desc: "The output sits in a draft, a notebook, or a personal workspace. Nobody sees it or acts on it until you choose to share it.", color: T.green },
+    { value: "consequential", label: "It reaches other people or informs decisions", desc: "The output goes into a report, a shared drive, a dashboard, a presentation, or a conversation. Someone may act on it. You can correct it, but you can\u2019t control whether someone has already used it.", color: T.amber },
+    { value: "irreversible", label: "It triggers an action that can\u2019t be undone", desc: "The output is sent to a client, published, submitted to a regulator, used in pricing, or triggers a financial transaction. These cannot be recalled.", color: T.red },
+  ]},
   orchTransparency: { id: "orchTransparency", label: "TRANSPARENCY", question: "Can you see what the LLM asked the tool to do?", subtitle: "If the LLM writes a database query, can you see the query? If it calls an API, can you see the request? The tool might be reliable, but you need to know whether the LLM asked the right question.", options: [
     { value: "yes", label: "Yes \u2014 we can see the LLM\u2019s instructions to the tool", desc: "The queries, API calls, or code the LLM generates are visible and reviewable.", color: T.green },
     { value: "no", label: "No \u2014 we only see the final output", desc: "We can\u2019t see what the LLM asked the tool to do, only what came back.", color: T.red },
@@ -238,6 +267,7 @@ function getNextQuestion(ans) {
   if (!ans.truth) return "truth";
   if (ans.truth === "no") return null;
   if (!ans.llmRole) return "llmRole";
+  if (!ans.consequence) return "consequence";
 
   if (ans.llmRole === "orchestrating") {
     if (!ans.orchTransparency) return "orchTransparency"; if (ans.orchTransparency === "no") return null;
@@ -249,20 +279,33 @@ function getNextQuestion(ans) {
   }
 
   if (!ans.taskType) return "taskType";
-  if (ans.taskType === "labelling") { if (!ans.finetuneData) return "finetuneData"; if (ans.finetuneData === "no") { if (!ans.labelSpotCheck) return "labelSpotCheck"; return null; } if (!ans.frozenModel) return "frozenModel"; return null; }
-  if (ans.taskType === "code") {
-    if (!ans.unitTests) return "unitTests"; if (ans.unitTests === "no") return null;
-    if (!ans.securityReview) return "securityReview"; if (ans.securityReview === "no") return null;
-    if (ans.securityReview === "human") { if (!ans.codeRepetition) return "codeRepetition"; return null; }
+  if (ans.taskType === "deterministic") {
+    if (!ans.detSubType) return "detSubType";
+    if (ans.detSubType === "code") {
+      if (!ans.unitTests) return "unitTests"; if (ans.unitTests === "no") return null;
+      if (!ans.securityReview) return "securityReview"; if (ans.securityReview === "no") return null;
+      if (ans.securityReview === "human") { if (!ans.codeRepetition) return "codeRepetition"; return null; }
+      return null;
+    }
+    if (ans.detSubType === "extraction") {
+      if (!ans.extractionSourceCheck) return "extractionSourceCheck"; if (ans.extractionSourceCheck === "no") return null;
+      if (ans.extractionSourceCheck === "human") { if (!ans.extractionRepetition) return "extractionRepetition"; return null; }
+      return null;
+    }
     return null;
   }
-  if (ans.taskType === "summarising") {
-    if (!ans.sourceCheck) return "sourceCheck"; if (ans.sourceCheck === "no") return null;
-    if (!ans.sourceCheckMethod) return "sourceCheckMethod";
-    if (!ans.sourceRepetition) return "sourceRepetition"; return null;
+  if (ans.taskType === "labelling") { if (!ans.finetuneData) return "finetuneData"; if (ans.finetuneData === "no") { if (!ans.labelSpotCheck) return "labelSpotCheck"; return null; } if (!ans.frozenModel) return "frozenModel"; return null; }
+  if (ans.taskType === "analysis") {
+    if (!ans.structuralVerification) return "structuralVerification"; if (ans.structuralVerification === "no") return null;
+    if (!ans.verificationMethod) return "verificationMethod";
+    if (!ans.repetition) return "repetition"; return null;
   }
-  if (ans.taskType === "analysis") { if (!ans.structuralVerification) return "structuralVerification"; if (ans.structuralVerification === "no") return null; if (!ans.verificationMethod) return "verificationMethod"; if (!ans.repetition) return "repetition"; return null; }
-  if (ans.taskType === "other") return null;
+  if (ans.taskType === "generation") {
+    if (!ans.genOutputCheckable) return "genOutputCheckable"; if (ans.genOutputCheckable === "no") return null;
+    if (!ans.genCheckMethod) return "genCheckMethod";
+    if (ans.genCheckMethod === "human") { if (!ans.genRepetition) return "genRepetition"; return null; }
+    return null;
+  }
   return null;
 }
 
@@ -298,27 +341,29 @@ function getOutcome(ans) {
     return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH ONGOING ACCURACY CHECKS", summary: "This is one of the best uses of LLMs. You have real training data, a properly trained model, and control over the version.", guidance: ["Keep a set of correctly labelled examples that the LLM never sees during training \u2014 use these to test accuracy", "Run accuracy checks every time you update the model or change anything in the system", "Set a minimum accuracy level \u2014 if it drops below that, stop the process until you investigate", "Keep a log of all labels for review and future retraining"], challenge: null };
   }
 
-  // CODE
-  if (ans.taskType === "code") {
-    if (ans.unitTests === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t write automated tests to prove the code works, you\u2019re trusting that the LLM got it right. LLM-generated code often looks correct but can contain subtle mistakes.", guidance: ["Start by defining what \u201Ccorrect\u201D looks like \u2014 then see if you can turn that into an automated test", "If the task is too vague to test, it\u2019s too vague to hand to an LLM", "Try breaking the task into smaller pieces that can each be tested independently"], challenge: "Can you restructure this task so the output is testable?" };
-    if (ans.securityReview === "no") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 SECURITY GAP", summary: "The code can be tested, which is good. But LLM-generated code can contain security holes that pass functional tests. Just because the code does what it\u2019s supposed to doesn\u2019t mean it\u2019s safe.", guidance: ["Add a security review step before using LLM-generated code in production", "At minimum, run automated security scanning tools", "Pay close attention to how the code handles user input, authentication, and sensitive data", "Treat LLM-generated code with the same scrutiny you\u2019d give to code from someone you don\u2019t know"], challenge: "Can you add automated security scanning to your process? That turns a reliance on human diligence into an automated check." };
-    if (ans.securityReview === "human") {
-      if (ans.codeRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 REVIEW WILL ERODE", summary: "You have tests and human security review, which is a good start. But this happens regularly, and a person is doing the security review each time. People check carefully at first. Then they start skimming. Then they stop checking altogether.", guidance: ["Move to automated security scanning \u2014 that\u2019s the single change that makes this fully reliable", "If you can\u2019t automate, rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each security review takes \u2014 if it\u2019s getting shorter, attention is fading", "Set up alerts for common vulnerability patterns that can be caught automatically"], challenge: "Can you replace the human security review with automated scanning? That single change makes this viable long-term." };
-      return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND REVIEW", summary: "This is a solid setup for a one-off task. The LLM writes the code, automated tests check that it works, and a person reviews for security.", guidance: ["Complete the security review before using the code \u2014 not after", "Pay close attention to how the code handles user input, authentication, and sensitive data", "If this starts happening regularly, consider switching to automated security scanning", "Track which code was LLM-generated, so you know what to look at if issues arise"], challenge: null };
+  // DETERMINISTIC
+  if (ans.taskType === "deterministic") {
+    if (ans.detSubType === "code") {
+      if (ans.unitTests === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t write automated tests to prove the code works, you\u2019re trusting that the LLM got it right. LLM-generated code often looks correct but can contain subtle mistakes.", guidance: ["Start by defining what \u201Ccorrect\u201D looks like \u2014 then see if you can turn that into an automated test", "If the task is too vague to test, it\u2019s too vague to hand to an LLM", "Try breaking the task into smaller pieces that can each be tested independently"], challenge: "Can you restructure this task so the output is testable?" };
+      if (ans.securityReview === "no") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 SECURITY GAP", summary: "The code can be tested, which is good. But LLM-generated code can contain security holes that pass functional tests. Just because the code does what it\u2019s supposed to doesn\u2019t mean it\u2019s safe.", guidance: ["Add a security review step before using LLM-generated code in production", "At minimum, run automated security scanning tools", "Pay close attention to how the code handles user input, authentication, and sensitive data", "Treat LLM-generated code with the same scrutiny you\u2019d give to code from someone you don\u2019t know"], challenge: "Can you add automated security scanning to your process? That turns a reliance on human diligence into an automated check." };
+      if (ans.securityReview === "human") {
+        if (ans.codeRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 REVIEW WILL ERODE", summary: "You have tests and human security review, which is a good start. But this happens regularly, and a person is doing the security review each time. People check carefully at first. Then they start skimming.", guidance: ["Move to automated security scanning \u2014 that\u2019s the single change that makes this fully reliable", "If you can\u2019t automate, rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each security review takes \u2014 if it\u2019s getting shorter, attention is fading"], challenge: "Can you replace the human security review with automated scanning? That single change makes this viable long-term." };
+        return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND REVIEW", summary: "This is a solid setup for a one-off task. The LLM writes the code, automated tests check that it works, and a person reviews for security.", guidance: ["Complete the security review before using the code \u2014 not after", "If this starts happening regularly, consider switching to automated security scanning"], challenge: null };
+      }
+      return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND AUTOMATED REVIEW", summary: "This is a strong setup. The LLM writes the code, automated tests check that it works, and automated security scanning catches vulnerabilities.", guidance: ["Keep your tests comprehensive \u2014 they\u2019re your real safety net", "Keep the security scanning rules up to date as the codebase changes"], challenge: null };
     }
-    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 WITH TESTING AND AUTOMATED REVIEW", summary: "This is a strong setup. The LLM writes the code, automated tests check that it works, and automated security scanning catches vulnerabilities. You\u2019re never trusting the LLM \u2014 you\u2019re always checking its work through independent systems.", guidance: ["Keep your tests comprehensive \u2014 they\u2019re your real safety net, not the LLM\u2019s confidence", "Keep the security scanning rules up to date as the codebase changes", "Track which code was LLM-generated, so you know what to look at if issues arise", "If test coverage drops, your ability to trust LLM-generated code drops with it"], challenge: null };
+    if (ans.detSubType === "extraction") {
+      if (ans.extractionSourceCheck === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t check the extracted output against the source, this isn\u2019t really a deterministic task. The LLM may drop fields, misread values, or subtly change meaning. Without source checking, you\u2019re trusting it.", guidance: ["Build a comparison step: check extracted values against the original source", "If the source is too complex to check against, consider whether this is actually an analysis task rather than extraction", "Structured extraction with defined fields is more checkable than open-ended extraction"], challenge: "Can you build an automated comparison between the extracted output and the source?" };
+      if (ans.extractionSourceCheck === "human") {
+        if (ans.extractionRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECKING WILL FADE", summary: "You can check the extraction against the source, but it relies on a person doing it every time, and this task repeats. People check carefully at first. Then they start skimming.", guidance: ["Automate the comparison where possible \u2014 field matching, value validation, completeness checks", "Rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each review takes \u2014 if reviews are getting shorter, attention is fading"], challenge: "Can you automate even part of the source checking? That makes this sustainable." };
+        return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 CHECK THIS RUN", summary: "You can check the extraction against the source and this is a one-off task. Run the check before trusting the results.", guidance: ["Check the output against the source before you use it", "Look for missing fields, not just wrong values \u2014 omissions are harder to spot"], challenge: null };
+      }
+      return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "Automated source checking for extraction tasks is a strong setup. The LLM extracts, the system verifies.", guidance: ["Look after the checking system itself \u2014 it\u2019s your safety net", "If the checking system breaks, stop the process"], challenge: null };
+    }
+    return null;
   }
 
-  // SUMMARISING
-  if (ans.taskType === "summarising") {
-    if (ans.sourceCheck === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "Giving the LLM your documents doesn\u2019t prevent fabrication. It just means the fabrication sounds more like your data. If you can\u2019t check whether the output faithfully represents the source material, you\u2019re trusting that the LLM got it right. It might have dropped key details, invented connections, or subtly changed meaning.", guidance: ["Ask yourself: could I compare the output to the original and spot errors?", "If the source material is too long or complex to check against, the LLM\u2019s output can\u2019t be trusted either", "Consider whether a structured extraction (specific fields, specific format) would be more checkable than a free-form summary", "If you need a summary you can trust, a person needs to write it"], challenge: "If the LLM dropped a critical detail from a 50-page report, or subtly changed the meaning of a finding, would you catch it?" };
-    if (ans.sourceCheckMethod === "human" && ans.sourceRepetition === "recurring") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECKING WILL FADE", summary: "You can check the output against the source, but it relies on a person doing it every time, and this task repeats. People check carefully at first. Then they start skimming. This can work, but only if you actively protect the quality of the review.", guidance: ["Rotate who does the review so the same person doesn\u2019t go on autopilot", "Track how long each review takes \u2014 if reviews are getting shorter, attention is fading", "Automate what you can: word counts, key entity matching, structural validation \u2014 even partial automation reduces the burden on the human reviewer", "Set a calendar reminder to reassess this process in 3 months \u2014 is the checking still happening properly?"], challenge: "Can you automate even part of the checking? That reduces the load on the human reviewer and makes this sustainable." };
-    if (ans.sourceCheckMethod === "human" && ans.sourceRepetition === "once") return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECK THIS SPECIFIC OUTPUT", summary: "You can check the output against the source and this is a one-off task. But be honest with yourself: will you actually read the source material and compare? The whole point of using an LLM to summarise is to avoid reading the original. The danger is that you skip the checking because the summary looks convincing enough.", guidance: ["Check the output against the source before you use it, not after", "Look specifically for things that are missing, not just things that are wrong \u2014 omissions are harder to spot than errors", "Check that the emphasis and framing match the source, not just the facts", "Write down what you checked and how, so others know the output has been verified"], challenge: "Will you actually read the source material and compare it to the output? Be honest." };
-    if (ans.sourceCheckMethod === "automated" && ans.sourceRepetition === "once") return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 CHECK AND USE", summary: "You have an automated way to check the output against the source, and this is a one-off task. Run the check before trusting the results.", guidance: ["Run the automated check before using the output in any decision or presentation", "If the check flags problems, investigate \u2014 don\u2019t just override it", "If this task starts happening regularly, make sure the automation is robust enough for ongoing use"], challenge: null };
-    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "This is a solid setup. The LLM transforms the source material, an automated system checks the output against the original, and it runs on an ongoing basis without depending on anyone remembering to look.", guidance: ["Look after the checking system itself \u2014 it\u2019s now your most important safety net", "Set up alerts for when the checks catch errors, and track how often that happens over time", "Periodically review both the LLM output and the checking system with fresh eyes", "If the checking system breaks, stop the process \u2014 don\u2019t fall back to having a person review it as a permanent fix"], challenge: null };
-  }
-
-  // ANALYSIS
+  // LABELLING (unchanged)
   if (ans.taskType === "analysis") {
     if (ans.structuralVerification === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If you can\u2019t check the output against something real and independent, you\u2019re just reading it and deciding whether it sounds right. An LLM is specifically designed to sound right. This is exactly how the Reddit failure happened.", guidance: ["Ask yourself: does the answer to this question exist somewhere I can check?", "If yes, build a way to compare the LLM\u2019s output to that real data", "If no, the LLM is making it up \u2014 confidently \u2014 and you can\u2019t tell the difference", "Could you restructure the task so the output becomes something you can check?"], challenge: "If this output were completely fabricated but perfectly convincing, how would you know?" };
     if (ans.verificationMethod === "human" && ans.repetition === "recurring") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS \u2014 CHECKING WILL FADE", summary: "You have a way to check the output, but it relies on a person doing it every time, and this task repeats. People check carefully at first. Then they skim. Then they stop.", guidance: ["Automate the checking: build a system that compares LLM output to source data without needing a person", "If you can\u2019t automate, rotate who does the checking so the same person doesn\u2019t go on autopilot", "Set up alerts that flag when outputs look unusual compared to previous results", "If none of these are realistic, an LLM isn\u2019t the right tool for this recurring task"], challenge: "Can you turn the human check into an automated one? That single change makes this viable." };
@@ -327,25 +372,58 @@ function getOutcome(ans) {
     return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "This is what good LLM use looks like. The LLM produces the output, an automated system checks it independently, and it runs on an ongoing basis without depending on anyone remembering to look.", guidance: ["Look after the checking system itself \u2014 it\u2019s now your most important safety net", "Set up alerts for when the checks catch errors, and track how often that happens", "Periodically review both the LLM output and the checking system with fresh eyes", "If the checking system breaks, stop the process \u2014 don\u2019t fall back to having a person review it as a permanent fix"], challenge: null };
   }
 
-  // OTHER
-  if (ans.taskType === "other") return {
-    level: "caution", color: T.amber, label: "THIS TOOL CAN\u2019T ASSESS THIS TASK DIRECTLY",
-    summary: "Your task doesn\u2019t fit neatly into the categories Cassandra covers. That doesn\u2019t mean you shouldn\u2019t use an LLM, but it does mean you need to think through the risk yourself.",
-    guidance: [
-      "Ask the core question: if the LLM gets this wrong, how would you know?",
-      "If there\u2019s an independent way to check the output (data, a source document, a test), you\u2019re in a stronger position",
-      "If the only check is reading it and deciding whether it seems right, be very cautious \u2014 LLMs are designed to seem right",
-      "Consider whether any part of your task maps to one of the categories above, and run that part through Cassandra separately",
-    ],
-    challenge: "What would a wrong output look like, and would you be able to tell the difference?",
-  };
+  // GENERATION
+  if (ans.taskType === "generation") {
+    if (ans.genOutputCheckable === "no") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS", summary: "If there are no specific criteria to check the output against, the only test is reading it and deciding whether it seems good enough. An LLM is designed to produce things that seem good enough. Polished output conceals flawed content. Without checkable criteria, you have no way to distinguish a correct output from a confident error.", guidance: ["Define what \u201Ccorrect\u201D would look like: required factual claims, specific structural elements, tone requirements", "If you can\u2019t define criteria, the task requires human judgement the LLM doesn\u2019t have", "Consider whether parts of this task are checkable (specific facts, quotes, data points) even if the overall quality is subjective"], challenge: "If the output contained a factual error wrapped in polished language, would you catch it?" };
+    if (ans.genCheckMethod === "human") {
+      if (ans.genRepetition === "recurring") return { level: "dont_use", color: T.red, label: "DON\u2019T USE AN LLM FOR THIS \u2014 CHECKING WILL FADE", summary: "You have criteria to check against, but a person does the checking every time, and this task repeats. People check carefully at first. Then they skim. Then they stop. For generation tasks, this is especially dangerous because the output looks polished regardless of whether the content is accurate.", guidance: ["Automate what you can: fact-checking against source data, required-element validation, structural checks", "If you can\u2019t automate the checking, this task will become an invisible failure over time", "Separate the parts of the output that can be checked structurally from the parts that require judgement"], challenge: "Can you automate the checking? If not, this task will drift toward unverified acceptance." };
+      return { level: "caution", color: T.amber, label: "GO AHEAD WITH CAUTION \u2014 CHECK THIS SPECIFIC OUTPUT", summary: "You have criteria to check against and this is a one-off task. But be honest: will you actually check every claim, or will the polished output convince you it\u2019s fine?", guidance: ["Check the output against your criteria before you use it, not after", "Look for factual claims that can be verified against sources", "Check that the tone, emphasis, and framing match what you intended, not just the surface quality", "Write down what you checked and how"], challenge: "Will you actually verify the factual claims in this output, or will you trust it because it reads well?" };
+    }
+    return { level: "proceed", color: T.green, label: "GO AHEAD \u2014 AUTOMATED CHECKS IN PLACE", summary: "You have specific criteria and automated checking. This is a strong setup for generation tasks: the LLM produces the content, and a system verifies it against defined criteria.", guidance: ["Keep the criteria up to date as requirements change", "Automated checks catch what they\u2019re designed to catch \u2014 periodically review whether the criteria are still comprehensive", "Track what the checks flag over time \u2014 patterns may reveal systematic issues"], challenge: null };
+  }
 
   return null;
 }
 
+// ─── CONSEQUENCE MODIFIER ───
+function applyConsequenceModifier(outcome, ans) {
+  if (!outcome || !ans.consequence) return outcome;
+  
+  // If consequence is irreversible and verdict is CAUTION, escalate to DON'T USE
+  if (ans.consequence === "irreversible" && outcome.level === "caution") {
+    return {
+      ...outcome,
+      level: "dont_use",
+      color: T.red,
+      label: outcome.label.replace(/GO AHEAD WITH CAUTION/, "DON\u2019T USE AN LLM FOR THIS"),
+      summary: outcome.summary + " And critically: if this output is wrong, the consequences are irreversible. A caution-level check is not enough when errors cannot be recalled. Either automate the verification fully or do not use an LLM for this task.",
+      guidance: [...outcome.guidance, "The consequence of error here is irreversible. Human-dependent checking is not reliable enough for this level of risk. Either build fully automated verification or remove the LLM from this task."],
+    };
+  }
+  
+  // If consequence is irreversible and verdict is GO AHEAD with human elements, add warning
+  if (ans.consequence === "irreversible" && outcome.level === "proceed") {
+    return {
+      ...outcome,
+      summary: outcome.summary + " Note: the consequence of error here is irreversible. Your verification setup is sound, but monitor it closely. If any part of the checking degrades, the risk becomes unacceptable.",
+      guidance: [...outcome.guidance, "Because errors here are irreversible, treat any degradation in your verification process as a critical issue, not a maintenance item."],
+    };
+  }
+  
+  // If consequence is contained, add reassurance to CAUTION verdicts
+  if (ans.consequence === "contained" && outcome.level === "caution") {
+    return {
+      ...outcome,
+      summary: outcome.summary + " The saving grace: this output stays in your workspace until you choose to share it. You have time to check before it matters.",
+    };
+  }
+  
+  return outcome;
+}
+
 function getAnsweredPath(ans) {
   const path = [];
-  const order = ["truth", "llmRole", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition"];
+  const order = ["truth", "llmRole", "consequence", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
   for (const qId of order) {
     if (ans[qId]) {
       const q = QUESTIONS[qId];
@@ -359,7 +437,7 @@ function getAnsweredPath(ans) {
 function getQuestionHistory(ans) {
   const history = [];
   const simulate = {};
-  const allKeys = ["truth", "llmRole", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition"];
+  const allKeys = ["truth", "llmRole", "consequence", "orchTransparency", "orchRawOutput", "orchLogging", "orchReviewMethod", "orchRepetition", "taskType", "detSubType", "finetuneData", "labelSpotCheck", "frozenModel", "unitTests", "securityReview", "codeRepetition", "extractionSourceCheck", "extractionRepetition", "sourceCheck", "sourceCheckMethod", "sourceRepetition", "structuralVerification", "verificationMethod", "repetition", "genOutputCheckable", "genCheckMethod", "genRepetition"];
   for (const key of allKeys) {
     if (!ans[key]) continue;
     const nextQ = getNextQuestion(simulate);
@@ -369,7 +447,7 @@ function getQuestionHistory(ans) {
 }
 
 const EXAMPLES = [
-  { label: "Categorising survey comments", description: "Sort 44,000 employee survey comments into predefined categories (career progression, workload, management, compensation, culture) and sentiment (positive, negative, mixed). We have 500 hand-labelled examples from last year\u2019s survey and can lock the model version.", tag: "GO AHEAD", tagColor: T.green, tagBg: T.greenBg, tagBorder: T.greenBorder },
+  { label: "Employee survey analysis", description: "Sort 44,000 employee survey comments into predefined categories (career progression, workload, management, compensation, culture) and sentiment (positive, negative, mixed). We have 500 hand-labelled examples from last year\u2019s survey and can lock the model version.", tag: "GO AHEAD", tagColor: T.green, tagBg: T.greenBg, tagBorder: T.greenBorder },
   { label: "Quarterly churn analysis", description: "We want an LLM to explain why customer churn went up 12% last quarter and suggest what to do about it, using CRM data, support tickets, and market research.", tag: "DON\u2019T USE", tagColor: T.red, tagBg: T.redBg, tagBorder: T.redBorder },
   { label: "Summarising support tickets", description: "Summarise 200 customer support tickets from last week into a trends report highlighting the most common issues, using the raw ticket data as the source. A person reads the summary and decides if it reflects what they saw in the queue.", tag: "CAUTION", tagColor: T.amber, tagBg: T.amberBg, tagBorder: T.amberBorder },
 ];
@@ -401,6 +479,7 @@ function renderDecisionTree() {
     ${node('<strong>Does accuracy matter?</strong>', T.navy, 0, true)}
     ${branch('NO', 1)}${outcome('GO AHEAD', T.green, 1)}
     ${branch('YES, ACCURACY MATTERS', 1)}${node('<strong>LLM producing or orchestrating tools?</strong>', T.navy, 1, true)}
+    <div style="margin-left:${2*I}px;margin-bottom:8px;margin-top:4px"><span style="font-size:11px;color:var(--text-tertiary);font-style:italic">+ Consequence of error is asked for every task (contained / consequential / irreversible). Irreversible consequence escalates any CAUTION verdict to DON\u2019T USE.</span></div>
     ${branch('ORCHESTRATING', 2)}${node('Can see what LLM asked the tool?', T.navy, 2, true)}
     ${branch('NO', 3)}${outcome("DON'T USE", T.red, 3)}
     ${branch('YES', 3)}${node("Can check tool's raw output?", T.navy, 3, true)}
@@ -413,6 +492,21 @@ function renderDecisionTree() {
     ${branch('ONE-OFF', 7)}${outcome('GO AHEAD - check this run', T.green, 7)}
     ${branch('RECURRING', 7)}${outcome('CAUTION - review will erode', T.amber, 7)}
     ${branch('PRODUCING DIRECTLY', 2)}${node('<strong>What kind of task?</strong>', T.navy, 2, true)}
+    ${branch('DETERMINISTIC', 3)}${node('Code or extraction?', T.navy, 3, true)}
+    ${branch('CODE', 4)}${node('Can write automated tests?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
+    ${branch('YES', 5)}${node('Security review?', T.navy, 5, true)}
+    ${branch('NO', 6)}${outcome('CAUTION - security gap', T.amber, 6)}
+    ${branch('AUTOMATED', 6)}${outcome('GO AHEAD - with testing', T.green, 6)}
+    ${branch('HUMAN', 6)}${node('Will this repeat?', T.navy, 6, true)}
+    ${branch('ONE-OFF', 7)}${outcome('GO AHEAD - with testing and review', T.green, 7)}
+    ${branch('RECURRING', 7)}${outcome('CAUTION - review will erode', T.amber, 7)}
+    ${branch('EXTRACTION / RETRIEVAL', 4)}${node('Can check output against source?', T.navy, 4, true)}
+    ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
+    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD', T.green, 5)}
+    ${branch('HUMAN', 5)}${node('Will this repeat?', T.navy, 5, true)}
+    ${branch('ONE-OFF', 6)}${outcome('GO AHEAD - check this run', T.green, 6)}
+    ${branch('RECURRING', 6)}${outcome('CAUTION - checking will fade', T.amber, 6)}
     ${branch('LABELLING', 3)}${node('Have training data?', T.navy, 3, true)}
     ${branch('NO', 4)}${node('Can spot-check a sample?', T.navy, 4, true)}
     ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
@@ -420,21 +514,6 @@ function renderDecisionTree() {
     ${branch('YES', 4)}${node('Can freeze model version?', T.navy, 4, true)}
     ${branch('NO', 5)}${outcome("DON'T USE", T.red, 5)}
     ${branch('YES', 5)}${outcome('GO AHEAD - with accuracy checks', T.green, 5)}
-    ${branch('CODE', 3)}${node('Can write automated tests?', T.navy, 3, true)}
-    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
-    ${branch('YES', 4)}${node('Security review?', T.navy, 4, true)}
-    ${branch('NO', 5)}${outcome('CAUTION - security gap', T.amber, 5)}
-    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD - with testing', T.green, 5)}
-    ${branch('HUMAN', 5)}${node('Will this repeat?', T.navy, 5, true)}
-    ${branch('ONE-OFF', 6)}${outcome('GO AHEAD - with testing and review', T.green, 6)}
-    ${branch('RECURRING', 6)}${outcome('CAUTION - review will erode', T.amber, 6)}
-    ${branch('SUMMARISING / EXTRACTING', 3)}${node('Can check against source?', T.navy, 3, true)}
-    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
-    ${branch('YES', 4)}${node('Automated or human checks?', T.navy, 4, true)}
-    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD', T.green, 5)}
-    ${branch('HUMAN', 5)}${node('Will this task repeat?', T.navy, 5, true)}
-    ${branch('ONE-OFF', 6)}${outcome('CAUTION - check this one', T.amber, 6)}
-    ${branch('RECURRING', 6)}${outcome('CAUTION - checking will fade', T.amber, 6)}
     ${branch('ANALYSIS', 3)}${node('Can verify independently?', T.navy, 3, true)}
     ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
     ${branch('YES', 4)}${node('Automated or human checks?', T.navy, 4, true)}
@@ -442,7 +521,13 @@ function renderDecisionTree() {
     ${branch('HUMAN', 5)}${node('Will this task repeat?', T.navy, 5, true)}
     ${branch('ONE-OFF', 6)}${outcome('CAUTION - verify this one', T.amber, 6)}
     ${branch('RECURRING', 6)}${outcome("DON'T USE - checking will fade", T.red, 6)}
-    ${branch('NONE OF THESE FIT', 3)}${outcome('CAUTION - assess the risk yourself', T.amber, 3)}
+    ${branch('GENERATION', 3)}${node('Clear criteria to check against?', T.navy, 3, true)}
+    ${branch('NO', 4)}${outcome("DON'T USE", T.red, 4)}
+    ${branch('YES', 4)}${node('Automated or human checks?', T.navy, 4, true)}
+    ${branch('AUTOMATED', 5)}${outcome('GO AHEAD', T.green, 5)}
+    ${branch('HUMAN', 5)}${node('Will this task repeat?', T.navy, 5, true)}
+    ${branch('ONE-OFF', 6)}${outcome('CAUTION - check this one', T.amber, 6)}
+    ${branch('RECURRING', 6)}${outcome("DON'T USE - checking will fade", T.red, 6)}
   `;
 }
 
@@ -617,7 +702,8 @@ function renderQuestion() {
 
 // ─── OUTCOME ───
 function renderOutcome() {
-  const outcome = getOutcome(answers);
+  const rawOutcome = getOutcome(answers);
+  const outcome = applyConsequenceModifier(rawOutcome, answers);
   if (!outcome) { phase = "input"; return renderInput(); }
 
   const path = getAnsweredPath(answers);
@@ -851,3 +937,4 @@ render();
 </script>
 </body>
 </html>
+
